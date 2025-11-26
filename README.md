@@ -185,11 +185,121 @@ Contains:
 
 ## Requirements
 
+### For All Workflows
 - GitHub Actions enabled for the repository
 - Default `GITHUB_TOKEN` has write permissions (automatic in most cases)
 
+### For OpenCode Workflow (Additional)
+- At least one AI provider API key configured (Anthropic/OpenAI/OpenCode Zen)
+- Optional: GitHub Copilot token for enhanced capabilities
+- Docker support in GitHub Actions runners (automatically available)
+
 ## Viewing Results
 
-1. **In Repository**: Check the `docker-outputs/` directory for timestamped output files
-2. **In Actions Tab**: View workflow runs, logs, and download artifacts
-3. **Commit History**: Each run creates a commit with the message "Add Docker hello-world output for YYYY-MM-DD"
+### In Repository
+Check the `docker-outputs/` directory for timestamped output files:
+- `hello-world-*.txt` - Hello World workflow outputs
+- `opencode-output-*.txt` - OpenCode workflow outputs
+
+### In Actions Tab
+1. View workflow runs and execution logs
+2. Check GitHub Actions summaries (OpenCode workflow provides detailed status)
+3. Download artifacts:
+   - `docker-output-*` - Hello World outputs (30-day retention)
+   - `opencode-output-*` - OpenCode outputs (30-day retention)
+   - `agents-config-*` - AGENTS.md configuration (7-day retention)
+
+### Commit History
+Each run creates automatic commits:
+- Hello World: `"Add Docker hello-world output for YYYY-MM-DD"`
+- OpenCode: `"Add OpenCode run output for YYYY-MM-DD"`
+
+## Troubleshooting
+
+### OpenCode Workflow Issues
+
+**Problem**: Workflow fails with authentication error  
+**Solution**: Ensure at least one AI provider API key is configured:
+- `ANTHROPIC_API_KEY` (recommended)
+- `OPENAI_API_KEY`
+- `OPENCODE_ZEN_API_KEY`
+
+**Problem**: GitHub Copilot not working  
+**Solution**: 
+1. Verify `GH_COPILOT_TOKEN` is set correctly
+2. Check token has required permissions
+3. Copilot is optional - workflow will run without it
+
+**Problem**: Docker container fails to start  
+**Solution**: 
+- Check Actions logs for specific error messages
+- Verify Docker image `ghcr.io/sst/opencode:latest` is accessible
+- GitHub Actions runners have Docker pre-installed
+
+**Problem**: No output files generated  
+**Solution**:
+- Check if workflow completed successfully
+- Review Actions logs for error messages
+- Verify repository permissions allow commits
+
+## Advanced Usage
+
+### Custom AGENTS.md Configuration
+
+The OpenCode workflow automatically creates an `AGENTS.md` file if it doesn't exist. You can customize this file to:
+- Define specific instructions for OpenCode
+- Set project-specific patterns and preferences
+- Configure automated responses
+
+Example custom AGENTS.md:
+```markdown
+# OpenCode Agent Configuration
+
+## Project Context
+This is a GitHub Actions automation project.
+
+## Instructions
+- When analyzing code, focus on workflow syntax and best practices
+- Provide clear, actionable suggestions
+- Always explain security implications
+- Be concise in automated responses
+
+## Preferences
+- Use YAML for GitHub Actions
+- Follow GitHub Actions best practices
+- Prefer official actions from marketplace
+```
+
+### Scheduling Variations
+
+Both workflows use the same schedule by default. To stagger them:
+
+**Run OpenCode at different time:**
+```yaml
+# In .github/workflows/daily-opencode-run.yml
+schedule:
+  - cron: '0 14 * * *'  # 2:00 PM UTC
+```
+
+**Run OpenCode on specific days:**
+```yaml
+schedule:
+  - cron: '0 8 * * 1,3,5'  # Monday, Wednesday, Friday at 8 AM UTC
+```
+
+## Security Best Practices
+
+1. **Never commit API keys** - Always use GitHub Secrets
+2. **Review OpenCode outputs** before relying on automated changes
+3. **Limit workflow permissions** - Use minimal required permissions
+4. **Rotate API keys regularly** - Update secrets periodically
+5. **Monitor usage** - Check AI provider billing for unexpected usage
+6. **Review artifacts** - Ensure no sensitive data in output files
+
+## Contributing
+
+Feel free to open issues or submit pull requests to improve the workflows!
+
+## License
+
+MIT
