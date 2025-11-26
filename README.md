@@ -4,7 +4,9 @@ A GitHub Actions project that runs Docker commands on a scheduled basis and stor
 
 ## Features
 
-- **Scheduled Docker Execution**: Runs `docker run hello-world` daily at 8:00 AM UTC
+- **Scheduled Docker Execution**: Multiple workflows running Docker containers daily at 8:00 AM UTC
+- **OpenCode AI Integration**: Run OpenCode AI agent in Docker with customizable messages
+- **GitHub Copilot Support**: Optional integration with GitHub Copilot for enhanced AI capabilities
 - **Customizable Messages**: Configure custom messages via GitHub Secrets or Variables
 - **Output Persistence**: Saves Docker output to timestamped files in `docker-outputs/` directory
 - **Automatic Commits**: Automatically commits and pushes output files to the repository
@@ -12,7 +14,7 @@ A GitHub Actions project that runs Docker commands on a scheduled basis and stor
 
 ## Workflow Details
 
-### Daily Docker Run Workflow
+### 1. Daily Docker Hello World Workflow
 
 **File**: `.github/workflows/daily-docker-run.yml`
 
@@ -25,28 +27,99 @@ A GitHub Actions project that runs Docker commands on a scheduled basis and stor
 4. Commits and pushes the output file back to the repository
 5. Uploads output as a workflow artifact (30-day retention)
 
+### 2. Daily OpenCode AI Run Workflow
+
+**File**: `.github/workflows/daily-opencode-run.yml`
+
+**Schedule**: Runs every day at 8:00 AM UTC (cron: `0 8 * * *`)
+
+**What it does**:
+1. Checks out the repository
+2. Sets up OpenCode authentication with available AI providers (Anthropic/OpenAI/OpenCode Zen)
+3. Optionally integrates with GitHub Copilot if token is provided
+4. Creates/updates AGENTS.md configuration file
+5. Runs OpenCode in Docker container with custom message (default: "hello, env, var")
+6. Displays environment information and system details
+7. Captures complete output to: `docker-outputs/opencode-output-YYYY-MM-DD_HH-MM-SS.txt`
+8. Generates GitHub Actions summary with configuration status
+9. Commits and pushes output files and configuration
+10. Uploads artifacts (output + AGENTS.md) for review
+
+**Key Features**:
+- ✅ **Multi-Provider Support**: Works with Anthropic Claude, OpenAI, or OpenCode Zen
+- ✅ **GitHub Copilot Integration**: Optional enhanced AI capabilities
+- ✅ **Secure Credential Handling**: Uses GitHub Secrets for API keys
+- ✅ **Environment Inspection**: Shows runner environment and available variables
+- ✅ **Manual Triggers**: Support for custom messages via workflow_dispatch
+
 ## Configuration
 
-### Customizing the Hello World Message
+### OpenCode AI Provider Setup
 
-You can customize the message displayed during Docker execution using either:
+To use the OpenCode workflow, you need to configure at least one AI provider. Choose from:
 
-#### Option 1: GitHub Secrets (Recommended for sensitive data)
+#### Option 1: Anthropic Claude (Recommended)
+1. Get an API key from [Anthropic Console](https://console.anthropic.com/)
+2. Go to your repository's **Settings** → **Secrets and variables** → **Actions**
+3. Click **New repository secret**
+4. Name: `ANTHROPIC_API_KEY`
+5. Value: Your Anthropic API key
+6. Click **Add secret**
+
+#### Option 2: OpenAI
+1. Get an API key from [OpenAI Platform](https://platform.openai.com/)
+2. Add as repository secret with name: `OPENAI_API_KEY`
+
+#### Option 3: OpenCode Zen (Curated Models)
+1. Sign up at [opencode.ai/auth](https://opencode.ai/auth)
+2. Add billing details and copy your API key
+3. Add as repository secret with name: `OPENCODE_ZEN_API_KEY`
+
+### GitHub Copilot Integration (Optional)
+
+To enable GitHub Copilot with OpenCode:
+1. Generate a GitHub token with Copilot access
+2. Add as repository secret with name: `GH_COPILOT_TOKEN`
+
+**Note**: GitHub Copilot integration enhances OpenCode's capabilities but is not required for basic functionality.
+
+### Basic Configuration
+
+### Customizing Messages
+
+#### Hello World Workflow Message
+
+You can customize the message displayed during Docker hello-world execution:
+
+**Via GitHub Secrets** (Recommended for sensitive data):
 1. Go to your repository's **Settings** → **Secrets and variables** → **Actions**
 2. Click **New repository secret**
 3. Name: `HELLO_MESSAGE`
 4. Value: Your custom message (e.g., "Hello from my automated workflow!")
 5. Click **Add secret**
 
-#### Option 2: GitHub Variables (Recommended for non-sensitive data)
-1. Go to your repository's **Settings** → **Secrets and variables** → **Actions**
-2. Click the **Variables** tab
-3. Click **New repository variable**
-4. Name: `HELLO_MESSAGE`
-5. Value: Your custom message
-6. Click **Add variable**
+**Via GitHub Variables** (Recommended for non-sensitive data):
+1. Go to **Settings** → **Secrets and variables** → **Actions** → **Variables** tab
+2. Name: `HELLO_MESSAGE`
+3. Value: Your custom message
 
-**Default**: If neither secret nor variable is set, it defaults to `"Hello from GitHub Actions!"`
+**Default**: `"Hello from GitHub Actions!"`
+
+#### OpenCode Workflow Message
+
+You can customize the message sent to OpenCode:
+
+**Via GitHub Secrets/Variables**:
+- Name: `OPENCODE_MESSAGE`
+- Value: Your message (default: "hello, env, var")
+
+**Via Manual Workflow Trigger**:
+1. Go to **Actions** tab → **Daily OpenCode Run**
+2. Click **Run workflow**
+3. Enter your custom message in the input field
+4. Click **Run workflow**
+
+This allows you to test different prompts without changing secrets.
 
 ### Changing the Schedule
 
@@ -68,23 +141,47 @@ on:
 
 ## Manual Execution
 
-You can manually trigger the workflow:
+### Hello World Workflow
 1. Go to the **Actions** tab in your repository
 2. Select **Daily Docker Hello World** workflow
 3. Click **Run workflow**
 4. Select the branch and click **Run workflow**
 
+### OpenCode Workflow (with custom message support)
+1. Go to the **Actions** tab in your repository
+2. Select **Daily OpenCode Run** workflow
+3. Click **Run workflow**
+4. **Optional**: Enter a custom message (e.g., "Analyze the repository structure", "Show me available tools")
+5. Select the branch and click **Run workflow**
+
 ## Output Files
 
-Output files are stored in the `docker-outputs/` directory with the format:
+Output files are stored in the `docker-outputs/` directory:
+
+### Hello World Output
 ```
 docker-outputs/hello-world-YYYY-MM-DD_HH-MM-SS.txt
 ```
 
-Each file contains:
+Contains:
 - Execution date and time
 - Custom message (if configured)
 - Complete Docker hello-world output
+
+### OpenCode Output
+```
+docker-outputs/opencode-output-YYYY-MM-DD_HH-MM-SS.txt
+```
+
+Contains:
+- Execution date and time
+- Custom message sent to OpenCode
+- GitHub Copilot status
+- Environment information (Runner OS, Workflow, Repository)
+- OpenCode Docker execution output
+- System information from container
+- Available environment variables (sanitized)
+- Workspace contents
 
 ## Requirements
 
