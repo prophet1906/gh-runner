@@ -1,0 +1,77 @@
+name: Daily Docker Hello World
+
+on:
+  schedule:
+    # Runs every day at 8:00 AM UTC (cron format: minute hour day month weekday)
+    - cron: '0 8 * * *'
+  workflow_dispatch: # Allows manual trigger from GitHub UI
+
+env:
+  HELLO_MESSAGE: ${{ secrets.HELLO_MESSAGE || vars.HELLO_MESSAGE || 'Hello from GitHub Actions!' }}
+
+jobs:
+  run-docker:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Required to push changes back to repo
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Set up Docker
+        run: |
+          docker --version
+          echo "Docker is ready"
+      
+      - name: Run Docker Hello World
+        id: docker-run
+        run: |
+          echo "Running Docker with custom message: $HELLO_MESSAGE"
+          
+          # Create outputs directory if it doesn't exist
+          mkdir -p docker-outputs
+          
+          # Generate filename with current date
+          DATE=$(date +%Y-%m-%d_%H-%M-%S)
+          OUTPUT_FILE="docker-outputs/hello-world-${DATE}.txt"
+          
+          # Run docker and capture output
+          echo "=== Docker Run Output ===" > "$OUTPUT_FILE"
+          echo "Date: $(date -u)" >> "$OUTPUT_FILE"
+          echo "Custom Message: $HELLO_MESSAGE" >> "$OUTPUT_FILE"
+          echo "" >> "$OUTPUT_FILE"
+          
+          # Run hello-world and append output
+          docker run hello-world >> "$OUTPUT_FILE" 2>&1
+          
+          echo "Output saved to: $OUTPUT_FILE"
+          echo "filename=$OUTPUT_FILE" >> $GITHUB_OUTPUT
+          
+          # Display the output
+          cat "$OUTPUT_FILE"
+      
+      - name: Commit and push output
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          
+          git add docker-outputs/
+          
+          # Check if there are changes to commit
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Add Docker hello-world output for $(date +%Y-%m-%d)"
+            git push
+            echo "Changes pushed successfully"
+          fi
+      
+      - name: Upload output as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-output-${{ github.run_number }}
+          path: ${{ steps.docker-run.outputs.filename }}
+          retention-days: 30
