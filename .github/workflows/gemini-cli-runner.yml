@@ -1,0 +1,287 @@
+name: Gemini CLI Task Runner
+
+on:
+  schedule:
+    # Runs every day at 9:00 AM UTC
+    - cron: '0 9 * * *'
+  workflow_dispatch: # Allows manual trigger from GitHub UI
+    inputs:
+      query:
+        description: 'Task query to execute with Gemini CLI'
+        required: true
+        default: 'Analyze this repository and provide insights about its structure and purpose'
+      output_format:
+        description: 'Output format (text, json, markdown)'
+        required: false
+        default: 'markdown'
+        type: choice
+        options:
+          - text
+          - json
+          - markdown
+
+env:
+  GEMINI_QUERY: ${{ github.event.inputs.query || secrets.GEMINI_QUERY || vars.GEMINI_QUERY || 'Analyze this repository structure and provide a summary' }}
+  OUTPUT_FORMAT: ${{ github.event.inputs.output_format || 'markdown' }}
+  # Gemini API credentials (configure in Settings > Secrets)
+  GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+  GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+
+jobs:
+  run-gemini-task:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Required to push changes back to repo
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0 # Full history for better context
+      
+      - name: Validate API credentials
+        id: validate-auth
+        run: |
+          if [ -n "$GEMINI_API_KEY" ]; then
+            echo "✅ GEMINI_API_KEY detected"
+            echo "HAS_GEMINI=true" >> $GITHUB_OUTPUT
+            echo "API_KEY=$GEMINI_API_KEY" >> $GITHUB_OUTPUT
+          elif [ -n "$GOOGLE_API_KEY" ]; then
+            echo "✅ GOOGLE_API_KEY detected (using as fallback)"
+            echo "HAS_GEMINI=true" >> $GITHUB_OUTPUT
+            echo "API_KEY=$GOOGLE_API_KEY" >> $GITHUB_OUTPUT
+          else
+            echo "❌ No API key found. Please configure GEMINI_API_KEY or GOOGLE_API_KEY in repository secrets"
+            echo "HAS_GEMINI=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+      
+      - name: Set up Docker
+        run: |
+          docker --version
+          echo "Docker is ready for Gemini CLI"
+      
+      - name: Prepare workspace context
+        id: prepare-context
+        run: |
+          # Create context directory
+          mkdir -p gemini-context
+          
+          # Generate repository context file
+          cat > gemini-context/repo-context.txt << 'EOF'
+          === Repository Context ===
+          Repository: ${{ github.repository }}
+          Branch: ${{ github.ref_name }}
+          Workflow: ${{ github.workflow }}
+          Run Number: ${{ github.run_number }}
+          Triggered by: ${{ github.event_name }}
+          
+          === Repository Structure ===
+          EOF
+          
+          # Add directory tree (limited depth to avoid huge output)
+          find . -maxdepth 3 -not -path '*/\.*' -not -path '*/node_modules/*' -not -path '*/vendor/*' | head -100 >> gemini-context/repo-context.txt
+          
+          echo "" >> gemini-context/repo-context.txt
+          echo "=== Recent Commits ===" >> gemini-context/repo-context.txt
+          git log --oneline -10 >> gemini-context/repo-context.txt 2>&1 || echo "No git history available" >> gemini-context/repo-context.txt
+          
+          echo "✅ Repository context prepared"
+      
+      - name: Run Gemini CLI in Docker
+        id: gemini-run
+        run: |
+          echo "Running Gemini CLI with query: $GEMINI_QUERY"
+          
+          # Create outputs directory
+          mkdir -p gemini-outputs
+          
+          # Generate filename with current date
+          DATE=$(date +%Y-%m-%d_%H-%M-%S)
+          OUTPUT_FILE="gemini-outputs/gemini-result-${DATE}.${OUTPUT_FORMAT}"
+          LOG_FILE="gemini-outputs/gemini-log-${DATE}.txt"
+          
+          # Create query file
+          QUERY_FILE="/tmp/gemini-query.txt"
+          cat > "$QUERY_FILE" << EOF
+          $GEMINI_QUERY
+          
+          Context:
+          - Repository: ${{ github.repository }}
+          - Working Directory: /workspace
+          - Date: $(date -u)
+          
+          Please provide a comprehensive response based on the repository contents available in /workspace
+          EOF
+          
+          # Start log file
+          echo "=== Gemini CLI Task Execution ===" > "$LOG_FILE"
+          echo "Date: $(date -u)" >> "$LOG_FILE"
+          echo "Query: $GEMINI_QUERY" >> "$LOG_FILE"
+          echo "Output Format: $OUTPUT_FORMAT" >> "$LOG_FILE"
+          echo "" >> "$LOG_FILE"
+          
+          # Run Gemini CLI in Docker container
+          # Using a Python container with google-generativeai package
+          echo "Setting up Gemini CLI environment..." >> "$LOG_FILE"
+          
+          docker run --rm \
+            -v "$(pwd)":/workspace \
+            -v "$QUERY_FILE":/tmp/query.txt \
+            -w /workspace \
+            -e GEMINI_API_KEY="${{ steps.validate-auth.outputs.API_KEY }}" \
+            -e GOOGLE_API_KEY="${{ steps.validate-auth.outputs.API_KEY }}" \
+            python:3.11-slim \
+            /bin/bash -c "
+              echo '=== Installing Gemini CLI ===' && \
+              pip install -q google-generativeai google-ai-generativelanguage && \
+              echo '✅ Gemini CLI installed' && \
+              echo '' && \
+              echo '=== Executing Gemini Task ===' && \
+              python3 << 'PYTHON_SCRIPT'
+          import google.generativeai as genai
+          import os
+          import json
+          from datetime import datetime
+          
+          # Configure Gemini
+          api_key = os.environ.get('GEMINI_API_KEY') or os.environ.get('GOOGLE_API_KEY')
+          genai.configure(api_key=api_key)
+          
+          # Read query
+          with open('/tmp/query.txt', 'r') as f:
+              query = f.read()
+          
+          # Create model
+          model = genai.GenerativeModel('gemini-pro')
+          
+          print('Query:', query[:100] + '...' if len(query) > 100 else query)
+          print('')
+          print('Processing with Gemini...')
+          print('')
+          
+          try:
+              # Generate response
+              response = model.generate_content(query)
+              
+              # Output result
+              print('=== Gemini Response ===')
+              print(response.text)
+              
+              # Save to output file
+              output_format = os.environ.get('OUTPUT_FORMAT', 'markdown')
+              output_file = '/workspace/$OUTPUT_FILE'
+              
+              with open(output_file, 'w') as f:
+                  f.write(f'# Gemini CLI Task Result\n\n')
+                  f.write(f'**Date:** {datetime.utcnow().isoformat()}Z\n\n')
+                  f.write(f'**Query:** {query[:200]}...\n\n' if len(query) > 200 else f'**Query:** {query}\n\n')
+                  f.write(f'---\n\n')
+                  f.write(response.text)
+              
+              print('')
+              print(f'✅ Result saved to {output_file}')
+              
+          except Exception as e:
+              print(f'❌ Error: {str(e)}')
+              exit(1)
+          PYTHON_SCRIPT
+            " >> "$LOG_FILE" 2>&1
+          
+          DOCKER_EXIT_CODE=$?
+          
+          echo "" >> "$LOG_FILE"
+          echo "=== Execution Summary ===" >> "$LOG_FILE"
+          echo "Completed at: $(date -u)" >> "$LOG_FILE"
+          echo "Exit Code: $DOCKER_EXIT_CODE" >> "$LOG_FILE"
+          
+          # Save filenames for later steps
+          echo "output_file=$OUTPUT_FILE" >> $GITHUB_OUTPUT
+          echo "log_file=$LOG_FILE" >> $GITHUB_OUTPUT
+          
+          # Display the log
+          echo "=== Execution Log ==="
+          cat "$LOG_FILE"
+          
+          # Display result if exists
+          if [ -f "$OUTPUT_FILE" ]; then
+            echo ""
+            echo "=== Gemini Result Preview ==="
+            head -50 "$OUTPUT_FILE"
+            echo "✅ Gemini task completed successfully"
+          else
+            echo "⚠️  Output file not found, check logs for errors"
+            exit 1
+          fi
+      
+      - name: Generate run summary
+        if: always()
+        run: |
+          OUTPUT_FILE="${{ steps.gemini-run.outputs.output_file }}"
+          LOG_FILE="${{ steps.gemini-run.outputs.log_file }}"
+          
+          echo "## Gemini CLI Task Execution Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Date:** $(date -u)" >> $GITHUB_STEP_SUMMARY
+          echo "**Query:** \`$GEMINI_QUERY\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Output Format:** \`$OUTPUT_FORMAT\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Configuration Status" >> $GITHUB_STEP_SUMMARY
+          echo "- Gemini API: ${{ steps.validate-auth.outputs.HAS_GEMINI && '✅' || '❌' }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -f "$OUTPUT_FILE" ]; then
+            echo "### Result Preview" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            head -30 "$OUTPUT_FILE" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Full output:** \`$OUTPUT_FILE\`" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ No output file generated. Check execution logs." >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "See artifacts for complete output and logs." >> $GITHUB_STEP_SUMMARY
+      
+      - name: Commit and push results
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          
+          git add gemini-outputs/
+          git add gemini-context/ 2>/dev/null || true
+          
+          # Check if there are changes to commit
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Add Gemini CLI task results for $(date +%Y-%m-%d)"
+            git push
+            echo "✅ Changes pushed successfully to repository"
+          fi
+      
+      - name: Upload result as artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gemini-result-${{ github.run_number }}
+          path: ${{ steps.gemini-run.outputs.output_file }}
+          retention-days: 30
+      
+      - name: Upload execution log as artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gemini-log-${{ github.run_number }}
+          path: ${{ steps.gemini-run.outputs.log_file }}
+          retention-days: 30
+      
+      - name: Upload context as artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gemini-context-${{ github.run_number }}
+          path: gemini-context/
+          retention-days: 7

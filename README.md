@@ -1,16 +1,18 @@
 # gh-runner
 
-A GitHub Actions project that runs Docker commands on a scheduled basis and stores outputs in the repository.
+A GitHub Actions project that runs AI-powered Docker commands on a scheduled basis and stores outputs in the repository.
 
 ## Features
 
-- **Scheduled Docker Execution**: Multiple workflows running Docker containers daily at 8:00 AM UTC
+- **Scheduled Docker Execution**: Multiple workflows running Docker containers daily
 - **OpenCode AI Integration**: Run OpenCode AI agent in Docker with customizable messages
+- **Gemini CLI Task Runner**: Execute custom queries using Google's Gemini AI model
 - **GitHub Copilot Support**: Optional integration with GitHub Copilot for enhanced AI capabilities
 - **Customizable Messages**: Configure custom messages via GitHub Secrets or Variables
-- **Output Persistence**: Saves Docker output to timestamped files in `docker-outputs/` directory
+- **Output Persistence**: Saves output to timestamped files in repository directories
 - **Automatic Commits**: Automatically commits and pushes output files to the repository
-- **Manual Triggers**: Supports manual workflow execution via GitHub UI
+- **Manual Triggers**: Supports manual workflow execution via GitHub UI with custom inputs
+- **Multiple Output Formats**: Support for text, JSON, and Markdown outputs
 
 ## Workflow Details
 
@@ -52,7 +54,52 @@ A GitHub Actions project that runs Docker commands on a scheduled basis and stor
 - ✅ **Environment Inspection**: Shows runner environment and available variables
 - ✅ **Manual Triggers**: Support for custom messages via workflow_dispatch
 
+### 3. Gemini CLI Task Runner Workflow
+
+**File**: `.github/workflows/gemini-cli-runner.yml`
+
+**Schedule**: Runs every day at 9:00 AM UTC (cron: `0 9 * * *`)
+
+**What it does**:
+1. Checks out the repository with full git history
+2. Validates Gemini API credentials (GEMINI_API_KEY or GOOGLE_API_KEY)
+3. Prepares repository context (structure, recent commits, metadata)
+4. Runs Gemini CLI in Docker container using Python with google-generativeai
+5. Executes custom query against Gemini Pro model
+6. Saves results in configurable format: `gemini-outputs/gemini-result-YYYY-MM-DD_HH-MM-SS.[format]`
+7. Generates execution log: `gemini-outputs/gemini-log-YYYY-MM-DD_HH-MM-SS.txt`
+8. Creates GitHub Actions summary with result preview
+9. Commits and pushes results, logs, and context to repository
+10. Uploads multiple artifacts (result, log, context) for review
+
+**Key Features**:
+- ✅ **Google Gemini Pro Integration**: Uses latest Gemini AI model for task execution
+- ✅ **Flexible Query System**: Execute any custom query via workflow input
+- ✅ **Multiple Output Formats**: Choose between text, JSON, or Markdown output
+- ✅ **Repository Context Aware**: Automatically includes repo structure and history
+- ✅ **Secure API Key Handling**: Supports GEMINI_API_KEY or GOOGLE_API_KEY
+- ✅ **Manual Triggers**: Run on-demand with custom queries and output formats
+- ✅ **Complete Logging**: Separate execution logs for debugging
+- ✅ **Artifact Persistence**: 30-day retention for results and logs
+
 ## Configuration
+
+### Gemini CLI Setup
+
+To use the Gemini CLI Task Runner workflow:
+
+1. Get a Gemini API key from [Google AI Studio](https://makersuite.google.com/app/apikey)
+2. Go to your repository's **Settings** → **Secrets and variables** → **Actions**
+3. Click **New repository secret**
+4. Name: `GEMINI_API_KEY` (or `GOOGLE_API_KEY`)
+5. Value: Your Gemini API key
+6. Click **Add secret**
+
+**Default Query**: "Analyze this repository structure and provide a summary"
+
+You can customize the query via:
+- **GitHub Secret/Variable**: `GEMINI_QUERY`
+- **Manual Trigger**: Use workflow_dispatch with custom query input
 
 ### OpenCode AI Provider Setup
 
@@ -121,6 +168,28 @@ You can customize the message sent to OpenCode:
 
 This allows you to test different prompts without changing secrets.
 
+#### Gemini CLI Query
+
+You can customize the query sent to Gemini:
+
+**Via GitHub Secrets/Variables**:
+- Name: `GEMINI_QUERY`
+- Value: Your query (default: "Analyze this repository structure and provide a summary")
+
+**Via Manual Workflow Trigger**:
+1. Go to **Actions** tab → **Gemini CLI Task Runner**
+2. Click **Run workflow**
+3. Enter your custom query in the "query" input field
+4. Select output format (text, json, or markdown)
+5. Click **Run workflow**
+
+**Example Queries**:
+- "Analyze this repository and provide insights about its structure and purpose"
+- "Review the GitHub Actions workflows and suggest improvements"
+- "Examine recent commits and summarize changes"
+- "Identify potential security issues in the codebase"
+- "Generate documentation for this project"
+
 ### Changing the Schedule
 
 Edit `.github/workflows/daily-docker-run.yml` and modify the cron expression:
@@ -154,14 +223,18 @@ on:
 4. **Optional**: Enter a custom message (e.g., "Analyze the repository structure", "Show me available tools")
 5. Select the branch and click **Run workflow**
 
+### Gemini CLI Task Runner (with custom query support)
+1. Go to the **Actions** tab in your repository
+2. Select **Gemini CLI Task Runner** workflow
+3. Click **Run workflow**
+4. **Required**: Enter your task query (e.g., "Review the workflows and suggest optimizations")
+5. **Optional**: Select output format (text, json, or markdown - default: markdown)
+6. Select the branch and click **Run workflow**
+
 ## Output Files
 
-Output files are stored in the `docker-outputs/` directory:
-
 ### Hello World Output
-```
-docker-outputs/hello-world-YYYY-MM-DD_HH-MM-SS.txt
-```
+Stored in `docker-outputs/hello-world-YYYY-MM-DD_HH-MM-SS.txt`
 
 Contains:
 - Execution date and time
@@ -169,9 +242,7 @@ Contains:
 - Complete Docker hello-world output
 
 ### OpenCode Output
-```
-docker-outputs/opencode-output-YYYY-MM-DD_HH-MM-SS.txt
-```
+Stored in `docker-outputs/opencode-output-YYYY-MM-DD_HH-MM-SS.txt`
 
 Contains:
 - Execution date and time
@@ -182,6 +253,33 @@ Contains:
 - System information from container
 - Available environment variables (sanitized)
 - Workspace contents
+
+### Gemini CLI Output
+Stored in `gemini-outputs/` directory:
+
+**Result File**: `gemini-outputs/gemini-result-YYYY-MM-DD_HH-MM-SS.[format]`
+
+Contains:
+- Task execution date and time
+- Query sent to Gemini
+- Complete Gemini Pro model response
+- Formatted according to selected output type (text/json/markdown)
+
+**Log File**: `gemini-outputs/gemini-log-YYYY-MM-DD_HH-MM-SS.txt`
+
+Contains:
+- Execution timestamps
+- Query details
+- Docker container setup logs
+- Gemini CLI installation logs
+- Execution summary and exit codes
+
+**Context File**: `gemini-context/repo-context.txt`
+
+Contains:
+- Repository metadata (name, branch, run number)
+- Directory structure (limited depth)
+- Recent commit history (last 10 commits)
 
 ## Requirements
 
@@ -194,27 +292,66 @@ Contains:
 - Optional: GitHub Copilot token for enhanced capabilities
 - Docker support in GitHub Actions runners (automatically available)
 
+### For Gemini CLI Workflow (Additional)
+- Gemini API key configured (GEMINI_API_KEY or GOOGLE_API_KEY)
+- Docker support in GitHub Actions runners (automatically available)
+- Python 3.11+ container support (handled automatically)
+
 ## Viewing Results
 
 ### In Repository
-Check the `docker-outputs/` directory for timestamped output files:
-- `hello-world-*.txt` - Hello World workflow outputs
-- `opencode-output-*.txt` - OpenCode workflow outputs
+Check output directories for timestamped files:
+- `docker-outputs/hello-world-*.txt` - Hello World workflow outputs
+- `docker-outputs/opencode-output-*.txt` - OpenCode workflow outputs
+- `gemini-outputs/gemini-result-*.[format]` - Gemini task results
+- `gemini-outputs/gemini-log-*.txt` - Gemini execution logs
+- `gemini-context/repo-context.txt` - Repository context for Gemini
 
 ### In Actions Tab
 1. View workflow runs and execution logs
-2. Check GitHub Actions summaries (OpenCode workflow provides detailed status)
+2. Check GitHub Actions summaries (OpenCode and Gemini workflows provide detailed status)
 3. Download artifacts:
    - `docker-output-*` - Hello World outputs (30-day retention)
    - `opencode-output-*` - OpenCode outputs (30-day retention)
    - `agents-config-*` - AGENTS.md configuration (7-day retention)
+   - `gemini-result-*` - Gemini task results (30-day retention)
+   - `gemini-log-*` - Gemini execution logs (30-day retention)
+   - `gemini-context-*` - Repository context (7-day retention)
 
 ### Commit History
 Each run creates automatic commits:
 - Hello World: `"Add Docker hello-world output for YYYY-MM-DD"`
 - OpenCode: `"Add OpenCode run output for YYYY-MM-DD"`
+- Gemini CLI: `"Add Gemini CLI task results for YYYY-MM-DD"`
 
 ## Troubleshooting
+
+### Gemini CLI Workflow Issues
+
+**Problem**: Workflow fails with API authentication error  
+**Solution**: Ensure Gemini API key is configured:
+- `GEMINI_API_KEY` (preferred)
+- `GOOGLE_API_KEY` (fallback)
+- Get key from [Google AI Studio](https://makersuite.google.com/app/apikey)
+
+**Problem**: Python package installation fails  
+**Solution**: 
+- Check Actions logs for specific error messages
+- Verify network connectivity to PyPI
+- Container should automatically install `google-generativeai`
+
+**Problem**: Query produces unexpected results  
+**Solution**:
+- Review the query syntax and clarity
+- Check repository context in `gemini-context/repo-context.txt`
+- Try different output formats (text, json, markdown)
+- Verify Gemini API quota hasn't been exceeded
+
+**Problem**: Output file not generated  
+**Solution**:
+- Check execution logs in `gemini-outputs/gemini-log-*.txt`
+- Verify Gemini API key has proper permissions
+- Review Python script errors in Actions logs
 
 ### OpenCode Workflow Issues
 
@@ -285,6 +422,34 @@ schedule:
 ```yaml
 schedule:
   - cron: '0 8 * * 1,3,5'  # Monday, Wednesday, Friday at 8 AM UTC
+```
+
+### Using Gemini for Code Analysis
+
+The Gemini CLI workflow can be particularly useful for:
+
+**Code Review Tasks:**
+```
+Query: "Review the GitHub Actions workflows in this repository and suggest security improvements"
+Format: markdown
+```
+
+**Documentation Generation:**
+```
+Query: "Generate comprehensive documentation for this project based on the code structure and README"
+Format: markdown
+```
+
+**Architecture Analysis:**
+```
+Query: "Analyze the project architecture and suggest improvements for scalability"
+Format: text
+```
+
+**Dependency Analysis:**
+```
+Query: "Review all dependencies and identify potential security vulnerabilities or outdated packages"
+Format: json
 ```
 
 ## Security Best Practices
