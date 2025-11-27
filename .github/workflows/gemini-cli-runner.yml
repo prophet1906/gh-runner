@@ -29,11 +29,6 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
       
-      - name: Prepare output directories
-        run: |
-          mkdir -p gemini-outputs
-          mkdir -p tech-digests
-      
       - name: Generate Tech News Digest
         id: generate-digest
         uses: google-github-actions/run-gemini-cli@v0
@@ -66,7 +61,7 @@ jobs:
             1. Generate a complete, interactive HTML file following the exact template in news.md
             2. Include all 6 categories: Critical Updates, Research Breakthroughs, Production Technology, Architectural Evolution, Industry Signals, Emerging Horizons
             3. Validate ALL links before inclusion - use only working URLs
-            4. Save the output as: tech-digest-${CURRENT_DATE}.html in the tech-digests/ directory
+            4. Save the output as: tech-digest-${CURRENT_DATE}.html in the repository root directory
             5. Ensure the HTML is self-contained and can be opened directly in a browser
             
             Execute the Multi-Dimensional Scan across research papers, security advisories, tech blogs, and open source releases.
@@ -95,7 +90,7 @@ jobs:
           else
             echo "### ✅ Digest Generated Successfully" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "📄 **Output File:** \`tech-digests/tech-digest-${DATE}.html\`" >> $GITHUB_STEP_SUMMARY
+            echo "📄 **Output File:** \`tech-digest-${DATE}.html\`" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "The interactive HTML digest has been generated and will be committed to the repository." >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
@@ -112,7 +107,7 @@ jobs:
         id: verify-digest
         run: |
           DATE=$(date +%Y-%m-%d)
-          DIGEST_FILE="tech-digests/tech-digest-${DATE}.html"
+          DIGEST_FILE="tech-digest-${DATE}.html"
           
           if [ -f "$DIGEST_FILE" ]; then
             echo "✅ HTML digest generated successfully: $DIGEST_FILE"
@@ -122,8 +117,8 @@ jobs:
             echo "file_exists=true" >> $GITHUB_OUTPUT
           else
             echo "⚠️ HTML digest file not found at expected location: $DIGEST_FILE"
-            echo "Checking gemini-outputs directory for generated files..."
-            ls -la gemini-outputs/ || echo "No gemini-outputs directory"
+            echo "Checking repository root for generated files..."
+            ls -la *.html 2>/dev/null || echo "No HTML files found in root"
             echo "file_exists=false" >> $GITHUB_OUTPUT
           fi
       
@@ -150,9 +145,8 @@ jobs:
             git checkout -b tech-digest
           fi
           
-          # Add generated HTML digest and any logs
-          git add tech-digests/
-          git add gemini-outputs/
+          # Add generated HTML digest file
+          git add "tech-digest-${DATE}.html"
           
           # Check if there are changes to commit
           if git diff --staged --quiet; then
@@ -167,10 +161,10 @@ jobs:
               -m "- Industry signals and adoption trends" \
               -m "- Emerging technologies and innovations" \
               -m "" \
-              -m "File: tech-digests/tech-digest-${DATE}.html"
+              -m "File: tech-digest-${DATE}.html"
             
             git push -u origin tech-digest
             echo "✅ Tech digest pushed successfully to tech-digest branch!"
-            echo "📄 View at: tech-digests/tech-digest-${DATE}.html"
+            echo "📄 View at: tech-digest-${DATE}.html"
             echo "🌿 Branch: tech-digest"
           fi
