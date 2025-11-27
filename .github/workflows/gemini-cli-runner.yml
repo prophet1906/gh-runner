@@ -1,22 +1,26 @@
-name: Gemini CLI Task Runner
+name: Tech News Digest Generator
 
 on:
   schedule:
-    # Runs every day at 9:00 AM UTC
+    # Runs daily at 9:00 AM UTC to generate fresh news digest
     - cron: '0 9 * * *'
   workflow_dispatch: # Allows manual trigger from GitHub UI
     inputs:
-      query:
-        description: 'Task query to execute with Gemini CLI'
-        required: true
-        default: 'Analyze this repository and provide insights about its structure and purpose'
+      focus_areas:
+        description: 'Specific focus areas (e.g., "AI/ML, Security, Cloud")'
+        required: false
+        default: ''
+      max_items_per_category:
+        description: 'Maximum news items per category'
+        required: false
+        default: '5'
 
 jobs:
-  run-gemini-task:
+  generate-news-digest:
     runs-on: ubuntu-latest
     environment: Gemini
     permissions:
-      contents: write # Required to push changes back to repo
+      contents: write # Required to push HTML digest back to repo
       id-token: write # Required for Workload Identity Federation
     
     steps:
@@ -24,21 +28,19 @@ jobs:
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          fetch-depth: 0 # Full history for better context
       
-      - name: Create output directory
-        run: mkdir -p gemini-outputs
+      - name: Prepare output directories
+        run: |
+          mkdir -p gemini-outputs
+          mkdir -p tech-digests
       
-      - name: Run Gemini CLI
-        id: run-gemini
+      - name: Generate Tech News Digest
+        id: generate-digest
         uses: google-github-actions/run-gemini-cli@v0
         env:
-          QUERY: ${{ github.event.inputs.query || vars.GEMINI_QUERY || 'Analyze this repository structure and provide a summary' }}
-          REPOSITORY: ${{ github.repository }}
-          BRANCH: ${{ github.ref_name }}
-          WORKFLOW: ${{ github.workflow }}
-          RUN_NUMBER: ${{ github.run_number }}
-          TRIGGERED_BY: ${{ github.event_name }}
+          CURRENT_DATE: ${{ steps.get-date.outputs.date }}
+          FOCUS_AREAS: ${{ github.event.inputs.focus_areas || 'AI/ML, Security, Cloud, DevOps, Programming Languages' }}
+          MAX_ITEMS: ${{ github.event.inputs.max_items_per_category || '5' }}
         with:
           gcp_location: ${{ vars.GOOGLE_CLOUD_LOCATION }}
           gcp_project_id: ${{ vars.GOOGLE_CLOUD_PROJECT }}
@@ -46,87 +48,129 @@ jobs:
           gcp_workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
           gemini_cli_version: ${{ vars.GEMINI_CLI_VERSION || 'latest' }}
-          gemini_debug: ${{ fromJSON(vars.DEBUG || vars.ACTIONS_STEP_DEBUG || 'false') }}
           gemini_model: ${{ vars.GEMINI_MODEL }}
           google_api_key: ${{ secrets.GOOGLE_API_KEY }}
-          use_gemini_code_assist: ${{ vars.GOOGLE_GENAI_USE_GCA }}
           use_vertex_ai: ${{ vars.GOOGLE_GENAI_USE_VERTEXAI }}
           upload_artifacts: true
-          workflow_name: 'gemini-cli-runner'
+          workflow_name: 'tech-news-digest'
+          prompt_file: 'news.md'
           prompt: |-
-            ${QUERY}
+            Generate today's tech news digest following the complete framework in news.md.
             
-            Repository Context:
-            - Repository: ${REPOSITORY}
-            - Branch: ${BRANCH}
-            - Workflow: ${WORKFLOW}
-            - Run Number: ${RUN_NUMBER}
-            - Triggered by: ${TRIGGERED_BY}
+            **Context:**
+            - Current Date: ${CURRENT_DATE}
+            - Focus Areas: ${FOCUS_AREAS}
+            - Max Items Per Category: ${MAX_ITEMS}
             
-            Please analyze the repository and provide a comprehensive response.
+            **Requirements:**
+            1. Generate a complete, interactive HTML file following the exact template in news.md
+            2. Include all 6 categories: Critical Updates, Research Breakthroughs, Production Technology, Architectural Evolution, Industry Signals, Emerging Horizons
+            3. Validate ALL links before inclusion - use only working URLs
+            4. Save the output as: tech-digest-${CURRENT_DATE}.html in the tech-digests/ directory
+            5. Ensure the HTML is self-contained and can be opened directly in a browser
+            
+            Execute the Multi-Dimensional Scan across research papers, security advisories, tech blogs, and open source releases.
       
-      - name: Generate run summary
+      - name: Get current date
+        id: get-date
+        run: echo "date=$(date +%Y-%m-%d)" >> $GITHUB_OUTPUT
+      
+      - name: Generate workflow summary
         if: always()
         run: |
-          SUMMARY="${{ steps.run-gemini.outputs.summary }}"
-          ERROR="${{ steps.run-gemini.outputs.error }}"
+          ERROR="${{ steps.generate-digest.outputs.error }}"
+          DATE=$(date +%Y-%m-%d)
           
-          echo "## Gemini CLI Task Execution Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## 🚀 Tech News Digest Generation" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Date:** $(date -u)" >> $GITHUB_STEP_SUMMARY
-          echo "**Query:** \`${{ github.event.inputs.query || vars.GEMINI_QUERY || 'Default analysis query' }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Generated:** $(date -u --iso-8601=seconds)" >> $GITHUB_STEP_SUMMARY
+          echo "**Focus Areas:** ${{ github.event.inputs.focus_areas || 'AI/ML, Security, Cloud, DevOps, Programming Languages' }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
           if [ -n "$ERROR" ]; then
-            echo "### ❌ Error" >> $GITHUB_STEP_SUMMARY
+            echo "### ❌ Generation Failed" >> $GITHUB_STEP_SUMMARY
             echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
             echo "$ERROR" >> $GITHUB_STEP_SUMMARY
             echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          elif [ -n "$SUMMARY" ]; then
-            echo "### ✅ Result" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "$SUMMARY" >> $GITHUB_STEP_SUMMARY
           else
-            echo "⚠️ No output generated. Check execution logs." >> $GITHUB_STEP_SUMMARY
+            echo "### ✅ Digest Generated Successfully" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "📄 **Output File:** \`tech-digests/tech-digest-${DATE}.html\`" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "The interactive HTML digest has been generated and will be committed to the repository." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Features:**" >> $GITHUB_STEP_SUMMARY
+            echo "- 🚨 Critical security updates" >> $GITHUB_STEP_SUMMARY
+            echo "- 🔬 Latest research breakthroughs" >> $GITHUB_STEP_SUMMARY
+            echo "- 🛠️ Production-ready technologies" >> $GITHUB_STEP_SUMMARY
+            echo "- 🏗️ Architectural evolution insights" >> $GITHUB_STEP_SUMMARY
+            echo "- 📊 Industry signals and trends" >> $GITHUB_STEP_SUMMARY
+            echo "- 🔮 Emerging horizons" >> $GITHUB_STEP_SUMMARY
           fi
-          
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "See artifacts for complete output and logs." >> $GITHUB_STEP_SUMMARY
       
-      - name: Save result to file
-        if: steps.run-gemini.outputs.summary != ''
+      - name: Verify HTML digest file
+        id: verify-digest
         run: |
-          DATE=$(date +%Y-%m-%d_%H-%M-%S)
-          OUTPUT_FILE="gemini-outputs/gemini-result-${DATE}.md"
+          DATE=$(date +%Y-%m-%d)
+          DIGEST_FILE="tech-digests/tech-digest-${DATE}.html"
           
-          cat > "$OUTPUT_FILE" << 'EOF'
-          # Gemini CLI Task Result
-          
-          **Date:** $(date -u --iso-8601=seconds)
-          **Repository:** ${{ github.repository }}
-          **Query:** ${{ github.event.inputs.query || vars.GEMINI_QUERY || 'Default analysis query' }}
-          
-          ---
-          
-          ${{ steps.run-gemini.outputs.summary }}
-          EOF
-          
-          echo "✅ Result saved to $OUTPUT_FILE"
-          echo "output_file=$OUTPUT_FILE" >> $GITHUB_OUTPUT
+          if [ -f "$DIGEST_FILE" ]; then
+            echo "✅ HTML digest generated successfully: $DIGEST_FILE"
+            FILE_SIZE=$(stat -f%z "$DIGEST_FILE" 2>/dev/null || stat -c%s "$DIGEST_FILE" 2>/dev/null)
+            echo "📊 File size: ${FILE_SIZE} bytes"
+            echo "digest_file=$DIGEST_FILE" >> $GITHUB_OUTPUT
+            echo "file_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️ HTML digest file not found at expected location: $DIGEST_FILE"
+            echo "Checking gemini-outputs directory for generated files..."
+            ls -la gemini-outputs/ || echo "No gemini-outputs directory"
+            echo "file_exists=false" >> $GITHUB_OUTPUT
+          fi
       
-      - name: Commit and push results
-        if: steps.run-gemini.outputs.summary != ''
+      - name: Commit and push HTML digest to tech-digest branch
+        if: steps.verify-digest.outputs.file_exists == 'true'
         run: |
+          DATE=$(date +%Y-%m-%d)
+          
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           
+          # Fetch all branches
+          git fetch origin
+          
+          # Check if tech-digest branch exists, create or checkout
+          if git show-ref --quiet refs/heads/tech-digest; then
+            echo "📌 Checking out existing tech-digest branch"
+            git checkout tech-digest
+          elif git show-ref --quiet refs/remotes/origin/tech-digest; then
+            echo "📌 Checking out remote tech-digest branch"
+            git checkout -b tech-digest origin/tech-digest
+          else
+            echo "🆕 Creating new tech-digest branch"
+            git checkout -b tech-digest
+          fi
+          
+          # Add generated HTML digest and any logs
+          git add tech-digests/
           git add gemini-outputs/
           
           # Check if there are changes to commit
           if git diff --staged --quiet; then
-            echo "No changes to commit"
+            echo "ℹ️ No changes to commit (digest may already exist)"
           else
-            git commit -m "Add Gemini CLI task results for $(date +%Y-%m-%d)"
-            git push
-            echo "✅ Changes pushed successfully to repository"
+            git commit -m "Add Tech News Digest for ${DATE}" \
+              -m "Generated interactive HTML digest covering:" \
+              -m "- Critical security updates and vulnerabilities" \
+              -m "- Latest research breakthroughs from academia" \
+              -m "- Production-ready technology releases" \
+              -m "- Architectural evolution and best practices" \
+              -m "- Industry signals and adoption trends" \
+              -m "- Emerging technologies and innovations" \
+              -m "" \
+              -m "File: tech-digests/tech-digest-${DATE}.html"
+            
+            git push -u origin tech-digest
+            echo "✅ Tech digest pushed successfully to tech-digest branch!"
+            echo "📄 View at: tech-digests/tech-digest-${DATE}.html"
+            echo "🌿 Branch: tech-digest"
           fi
