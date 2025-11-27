@@ -30,6 +30,7 @@ env:
 jobs:
   run-gemini-task:
     runs-on: ubuntu-latest
+    environment: Gemini
     permissions:
       contents: write # Required to push changes back to repo
     
