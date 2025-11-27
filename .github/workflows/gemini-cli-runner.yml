@@ -29,6 +29,10 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
       
+      - name: Get current date
+        id: get-date
+        run: echo "date=$(date +%Y-%m-%d)" >> $GITHUB_OUTPUT
+      
       - name: Generate Tech News Digest
         id: generate-digest
         uses: google-github-actions/run-gemini-cli@v0
@@ -48,27 +52,159 @@ jobs:
           use_vertex_ai: ${{ vars.GOOGLE_GENAI_USE_VERTEXAI }}
           upload_artifacts: true
           workflow_name: 'tech-news-digest'
-          prompt_file: 'news.md'
-          prompt: |-
-            Generate today's tech news digest following the complete framework in news.md.
-            
-            **Context:**
+          prompt: |
+            You are a technical intelligence curator for software professionals and academics. Generate a comprehensive tech news digest.
+
+            ## CONTEXT
             - Current Date: ${CURRENT_DATE}
             - Focus Areas: ${FOCUS_AREAS}
             - Max Items Per Category: ${MAX_ITEMS}
+
+            ## NEWS DISCOVERY FRAMEWORK
+
+            ### Phase 1: Multi-Dimensional Scan
+            Search across these dimensions:
+
+            **A. Breakthrough Research & Innovation**
+            - Recent papers on arXiv (cs.SE, cs.AI, cs.PL, cs.DC, cs.CR, cs.DB)
+            - Conference proceedings (ICSE, FSE, PLDI, OSDI, SOSP, NeurIPS, SIGMOD)
+            - Novel algorithms, formal methods, theoretical advances
+
+            **B. Production-Ready Technology**
+            - New stable releases of major frameworks/languages
+            - Adoption patterns in production environments
+            - Tooling improvements (developer productivity, observability, security)
+
+            **C. Architectural & Paradigm Shifts**
+            - Evolving patterns in system design
+            - Infrastructure evolution (cloud-native, edge computing, serverless)
+            - Programming paradigm adoption
+
+            **D. Security & Compliance Landscape**
+            - Critical CVEs and vulnerability disclosures (CISA KEV, NVD)
+            - Zero-day exploits and mitigation strategies
+            - Regulatory changes
+
+            **E. Industry Intelligence**
+            - Major tech company engineering blogs
+            - Open source project trajectories
+            - Developer survey insights
+
+            ### Phase 2: Signal Extraction
+
+            **Relevance Scoring:**
+            - Critical (⭐⭐⭐): Immediate impact, security-critical, paradigm-shifting
+            - Important (⭐⭐): Emerging best practices, growing adoption
+            - Awareness (⭐): Experimental, early-stage
+
+            **Actionability Assessment:**
+            - Immediate Action: Requires updates, patches
+            - Strategic Planning: 3-6 month roadmaps
+            - Monitor & Learn: Track evolution, experiment
+            - Long-term Watch: Revisit in 6-12 months
+
+            ## CRITICAL OUTPUT REQUIREMENTS
+
+            **YOU MUST:**
+            1. Generate a complete, self-contained interactive HTML file
+            2. Save it as: tech-digest-${CURRENT_DATE}.html in the repository root
+            3. Include all 6 categories: Critical Updates, Research Breakthroughs, Production Technology, Architectural Evolution, Industry Signals, Emerging Horizons
+            4. Validate ALL links before inclusion - use only working URLs
+            5. Use dark theme design with modern, responsive layout
+            6. Include collapsible sections for each category
+            7. Each news item must have: title, badges (relevance + actionability), description, verified source link, and detail sections (Why It Matters, Recommended Action, Learning Resources)
+
+            ## HTML STRUCTURE REQUIREMENTS
+
+            Create a complete HTML document with:
+            - DOCTYPE html declaration
+            - Meta tags for UTF-8 and viewport
+            - Title: "Tech Intelligence Digest - ${CURRENT_DATE}"
+            - Embedded CSS with dark theme variables:
+              * --critical: #dc2626
+              * --research: #7c3aed
+              * --production: #059669
+              * --architecture: #0891b2
+              * --industry: #ea580c
+              * --emerging: #6366f1
+              * Dark backgrounds: #0f172a, #1e293b, #334155
             
-            **Requirements:**
-            1. Generate a complete, interactive HTML file following the exact template in news.md
-            2. Include all 6 categories: Critical Updates, Research Breakthroughs, Production Technology, Architectural Evolution, Industry Signals, Emerging Horizons
-            3. Validate ALL links before inclusion - use only working URLs
-            4. Save the output as: tech-digest-${CURRENT_DATE}.html in the repository root directory
-            5. Ensure the HTML is self-contained and can be opened directly in a browser
+            - Header with gradient title and metadata
+            - Stats bar showing counts for each category
+            - Six category sections, each with:
+              * Category header with icon and toggle button
+              * Collapsible content area
+              * News items with structured data
             
-            Execute the Multi-Dimensional Scan across research papers, security advisories, tech blogs, and open source releases.
-      
-      - name: Get current date
-        id: get-date
-        run: echo "date=$(date +%Y-%m-%d)" >> $GITHUB_OUTPUT
+            - Each news item structure:
+              ```html
+              <div class="news-item">
+                <div class="item-header">
+                  <h3 class="item-title">{Title}</h3>
+                  <div class="badges">
+                    <span class="badge {critical|important|awareness}">{Relevance}</span>
+                    <span class="badge {immediate|strategic|monitor|watch}">{Actionability}</span>
+                  </div>
+                </div>
+                <p class="item-description">{Description}</p>
+                <a href="{verified_url}" class="source-link" target="_blank">Original Source: {source_name}</a>
+                <div class="item-details">
+                  <div class="detail-section">
+                    <h4>💡 Why It Matters</h4>
+                    <p>{Impact explanation}</p>
+                  </div>
+                  <div class="detail-section">
+                    <h4>⚡ Recommended Action</h4>
+                    <p>{Next steps}</p>
+                  </div>
+                  <div class="detail-section">
+                    <h4>📚 Learning Resources</h4>
+                    <div class="resources">
+                      <a href="{url}" class="resource-link" target="_blank">{Resource Name}</a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              ```
+            
+            - JavaScript for toggle functionality:
+              ```javascript
+              function toggleCategory(header) {
+                const content = header.nextElementSibling;
+                const button = header.querySelector('.toggle-btn');
+                if (content.classList.contains('collapsed')) {
+                  content.classList.remove('collapsed');
+                  button.classList.remove('collapsed');
+                  button.classList.add('expanded');
+                } else {
+                  content.classList.add('collapsed');
+                  button.classList.remove('expanded');
+                  button.classList.add('collapsed');
+                }
+              }
+              ```
+            
+            - Footer with generation metadata
+
+            ## EXECUTION STEPS
+
+            1. Perform Multi-Dimensional Scan using available search tools
+            2. Extract signals and evaluate relevance/actionability
+            3. **Validate all URLs** - test each link, replace broken ones or mark unavailable
+            4. Count items per category for stats bar
+            5. Generate complete HTML with proper styling
+            6. **Save file as: tech-digest-${CURRENT_DATE}.html**
+            7. Ensure file is browser-ready (no external dependencies)
+
+            ## QUALITY CRITERIA
+            ✅ All links verified and working
+            ✅ Balanced across experience levels
+            ✅ Verifiable from primary sources
+            ✅ Clear relevance to professional practice
+            ✅ Honest about maturity levels and risks
+            ✅ Actionable recommendations for each item
+
+            Begin generating the digest now. Save the complete HTML file to tech-digest-${CURRENT_DATE}.html
       
       - name: Generate workflow summary
         if: always()
