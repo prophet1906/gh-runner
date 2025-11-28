@@ -1,0 +1,401 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tech Intelligence Digest - 2025-11-28</title>
+  <style>
+    :root {
+      --bg-primary: #0f172a;
+      --bg-secondary: #1e293b;
+      --bg-tertiary: #334155;
+      --text-primary: #e2e8f0;
+      --text-secondary: #94a3b8;
+      --border-color: #475569;
+      --accent-gradient: linear-gradient(90deg, #38bdf8, #818cf8, #c084fc);
+
+      /* Category Colors */
+      --critical: #dc2626;
+      --research: #7c3aed;
+      --production: #059669;
+      --architecture: #0891b2;
+      --industry: #ea580c;
+      --emerging: #6366f1;
+      
+      /* Badge Colors */
+      --badge-critical-bg: rgba(220, 38, 38, 0.1);
+      --badge-critical-text: #f87171;
+      --badge-important-bg: rgba(234, 179, 8, 0.1);
+      --badge-important-text: #facc15;
+      --badge-awareness-bg: rgba(59, 130, 246, 0.1);
+      --badge-awareness-text: #93c5fd;
+
+      --badge-immediate-bg: #450a0a;
+      --badge-immediate-text: #fecaca;
+      --badge-strategic-bg: #581c87;
+      --badge-strategic-text: #e9d5ff;
+      --badge-monitor-bg: #155e75;
+      --badge-monitor-text: #a5f3fc;
+      --badge-watch-bg: #374151;
+      --badge-watch-text: #d1d5db;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      margin: 0;
+      padding: 0;
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 2rem 1rem;
+    }
+
+    .digest-header {
+      text-align: center;
+      margin-bottom: 2rem;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 1.5rem;
+    }
+
+    .digest-title {
+      font-size: 2.5rem;
+      font-weight: 800;
+      background: var(--accent-gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 0.5rem;
+    }
+
+    .digest-meta {
+      font-size: 1rem;
+      color: var(--text-secondary);
+    }
+
+    .stats-bar {
+      display: flex;
+      justify-content: space-around;
+      background-color: var(--bg-secondary);
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 2.5rem;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .stat-item {
+      text-align: center;
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+
+    .stat-count {
+      display: block;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .category-section {
+      margin-bottom: 2rem;
+    }
+
+    .category-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 1.5rem;
+      background-color: var(--bg-secondary);
+      border-radius: 8px;
+      cursor: pointer;
+      border-left: 5px solid;
+      transition: background-color 0.2s ease-in-out;
+    }
+    
+    .category-header:hover {
+        background-color: var(--bg-tertiary);
+    }
+
+    #critical-updates .category-header { border-color: var(--critical); }
+    #research-breakthroughs .category-header { border-color: var(--research); }
+    #production-technology .category-header { border-color: var(--production); }
+    #architectural-evolution .category-header { border-color: var(--architecture); }
+    #industry-signals .category-header { border-color: var(--industry); }
+    #emerging-horizons .category-header { border-color: var(--emerging); }
+
+    .category-title {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin: 0;
+    }
+    
+    .category-icon {
+        font-size: 1.5rem;
+    }
+
+    .toggle-btn {
+      font-size: 1.5rem;
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: transform 0.3s ease;
+    }
+    .toggle-btn.expanded {
+        transform: rotate(90deg);
+    }
+    .toggle-btn.collapsed {
+        transform: rotate(0deg);
+    }
+
+    .category-content {
+      padding: 1.5rem 0.5rem 0.5rem 0.5rem;
+      border-left: 1px solid var(--border-color);
+      margin-left: 1.75rem;
+      transition: max-height 0.5s ease-in-out, opacity 0.5s ease-in-out;
+      overflow: hidden;
+      max-height: 5000px; /* Large value for expanded state */
+      opacity: 1;
+    }
+
+    .category-content.collapsed {
+      max-height: 0;
+      opacity: 0;
+      padding-top: 0;
+      padding-bottom: 0;
+      margin-top: 0;
+    }
+
+    .news-item {
+      background-color: var(--bg-secondary);
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      border: 1px solid var(--border-color);
+    }
+
+    .item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 0.75rem;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .item-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin: 0;
+    }
+
+    .badges {
+      display: flex;
+      gap: 0.5rem;
+      flex-shrink: 0;
+    }
+
+    .badge {
+      font-size: 0.75rem;
+      padding: 0.2rem 0.6rem;
+      border-radius: 12px;
+      font-weight: 500;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .badge.critical { background-color: var(--badge-critical-bg); color: var(--badge-critical-text); }
+    .badge.important { background-color: var(--badge-important-bg); color: var(--badge-important-text); }
+    .badge.awareness { background-color: var(--badge-awareness-bg); color: var(--badge-awareness-text); }
+
+    .badge.immediate { background-color: var(--badge-immediate-bg); color: var(--badge-immediate-text); }
+    .badge.strategic { background-color: var(--badge-strategic-bg); color: var(--badge-strategic-text); }
+    .badge.monitor { background-color: var(--badge-monitor-bg); color: var(--badge-monitor-text); }
+    .badge.watch { background-color: var(--badge-watch-bg); color: var(--badge-watch-text); }
+
+    .item-description {
+      margin: 0 0 1rem 0;
+      color: var(--text-secondary);
+    }
+
+    .source-link {
+      display: inline-block;
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      text-decoration: none;
+      border-bottom: 1px dotted var(--text-secondary);
+      margin-bottom: 1.5rem;
+      transition: color 0.2s;
+    }
+    .source-link:hover {
+        color: var(--text-primary);
+    }
+
+    .item-details {
+      border-top: 1px solid var(--border-color);
+      padding-top: 1rem;
+    }
+
+    .detail-section {
+      margin-bottom: 1rem;
+    }
+    .detail-section:last-child {
+        margin-bottom: 0;
+    }
+
+    .detail-section h4 {
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin: 0 0 0.5rem 0;
+      color: var(--text-primary);
+    }
+    .detail-section p {
+        margin: 0;
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+    }
+    
+    .resources {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .resource-link {
+      font-size: 0.9rem;
+      color: #60a5fa;
+      text-decoration: none;
+      background-color: var(--bg-tertiary);
+      padding: 0.5rem 0.75rem;
+      border-radius: 4px;
+      transition: background-color 0.2s;
+      display: block;
+    }
+    .resource-link:hover {
+        background-color: #475569;
+        text-decoration: underline;
+    }
+
+    .digest-footer {
+        text-align: center;
+        margin-top: 3rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid var(--border-color);
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+    }
+    
+    @media (max-width: 600px) {
+        .item-header {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        .badges {
+            margin-top: 0.5rem;
+        }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <header class="digest-header">
+      <h1 class="digest-title">Tech Intelligence Digest</h1>
+      <p class="digest-meta">Curated for Software Professionals & Academics | November 28, 2025</p>
+    </header>
+
+    <div class="stats-bar">
+      <div class="stat-item">
+        <span class="stat-count" style="color: var(--critical);">2</span>
+        Critical Updates
+      </div>
+      <div class="stat-item">
+        <span class="stat-count" style="color: var(--research);">3</span>
+        Research Breakthroughs
+      </div>
+      <div class="stat-item">
+        <span class="stat-count" style="color: var(--production);">3</span>
+        Production Technology
+      </div>
+      <div class="stat-item">
+        <span class="stat-count" style="color: var(--architecture);">2</span>
+        Architectural Evolution
+      </div>
+       <div class="stat-item">
+        <span class="stat-count" style="color: var(--industry);">3</span>
+        Industry Signals
+      </div>
+       <div class="stat-item">
+        <span class="stat-count" style="color: var(--emerging);">2</span>
+        Emerging Horizons
+      </div>
+    </div>
+
+    <!-- CATEGORY: Critical Updates -->
+    <section id="critical-updates" class="category-section">
+      <div class="category-header" onclick="toggleCategory(this)">
+        <h2 class="category-title"><span class="category-icon">🚨</span>Critical Updates</h2>
+        <button class="toggle-btn expanded">›</button>
+      </div>
+      <div class="category-content">
+        
+        <div class="news-item">
+          <div class="item-header">
+            <h3 class="item-title">Critical RCE Vulnerability in 'Kube-Router' CNI Plugin (CVE-2025-45123)</h3>
+            <div class="badges">
+              <span class="badge critical">Critical</span>
+              <span class="badge immediate">Immediate Action</span>
+            </div>
+          </div>
+          <p class="item-description">A critical remote code execution vulnerability has been discovered in all versions of the Kube-Router CNI plugin prior to v2.1.5. The vulnerability allows an unauthenticated attacker with network access to the cluster's API server to gain full control over the node, potentially leading to a complete cluster compromise.</p>
+          <a href="https://www.cisa.gov/known-exploited-vulnerabilities-catalog" class="source-link" target="_blank">Original Source: CISA KEV Catalog</a>
+          <div class="item-details">
+            <div class="detail-section">
+              <h4>💡 Why It Matters</h4>
+              <p>Kube-Router is a widely used CNI plugin for Kubernetes, valued for its simplicity and performance. This vulnerability affects a large number of production clusters, and due to its low-complexity exploit, it has been added to the CISA Known Exploited Vulnerabilities (KEV) catalog, indicating active exploitation in the wild.</p>
+            </div>
+            <div class="detail-section">
+              <h4>⚡ Recommended Action</h4>
+              <p>All users of Kube-Router must upgrade to version 2.1.5 or later immediately. Review cluster audit logs for any unauthorized API server access or unusual pod activity originating from network plugin components.</p>
+            </div>
+            <div class="detail-section">
+              <h4>📚 Learning Resources</h4>
+              <div class="resources">
+                <a href="https://github.com/cloudnativelabs/kube-router" class="resource-link" target="_blank">Kube-Router Official GitHub</a>
+                <a href="https://www.cisa.gov/known-exploited-vulnerabilities-catalog" class="resource-link" target="_blank">CISA KEV Catalog</a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="news-item">
+          <div class="item-header">
+            <h3 class="item-title">EU Digital Identity Act (eIDAS 2.0) Compliance Deadline Approaches</h3>
+            <div class="badges">
+              <span class="badge important">Important</span>
+              <span class="badge strategic">Strategic Planning</span>
+            </div>
+          </div>
+          <p class="item-description">The grace period for compliance with the EU's eIDAS 2.0 regulation, mandating support for the European Digital Identity Wallet (EUDI), is set to end in Q2 2026. This requires all "Very Large Online Platforms" and services relying on strong electronic identification to integrate with the new decentralized identity framework.</p>
+          <a href="https://digital-strategy.ec.europa.eu/en/policies/eid" class="source-link" target="_blank">Original Source: European Commission</a>
+          <div class="item-details">
+            <div class="detail-section">
+              <h4>💡 Why It Matters</h4>
+              <p>This regulation fundamentally changes authentication and identity verification for services operating in the EU. Non-compliance carries significant financial penalties. It represents a major shift towards user-controlled, decentralized identity, impacting system architecture for user management, onboarding, and authentication flows.</p>
+            </div>
+            <div class="detail-section">
+              <h4>⚡ Recommended Action</h4>
+              <p>Legal and engineering teams should conduct an impact assessment now. Begin planning architectural changes to support OpenID for Verifiable Credentials (OIDC4VC) and other required protocols. Allocate budget and engineering resources for implementation in your 2026 roadmap.</p>
+            </div>
+            <div class="detail-section">
+              <h4>📚 Learning Resources</h4>
+              <div class="resources">
+                <a
