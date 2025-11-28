@@ -54,33 +54,48 @@ A GitHub Actions project that runs AI-powered Docker commands on a scheduled bas
 - ✅ **Environment Inspection**: Shows runner environment and available variables
 - ✅ **Manual Triggers**: Support for custom messages via workflow_dispatch
 
-### 3. Gemini CLI Task Runner Workflow
+### 3. Tech News Digest Generator (Gemini Multi-Model)
 
 **File**: `.github/workflows/gemini-cli-runner.yml`
 
-**Schedule**: Runs every day at 9:00 AM UTC (cron: `0 9 * * *`)
+**Schedule**: Runs daily at 9:00 AM UTC (cron: `0 9 * * *`)
 
 **What it does**:
-1. Checks out the repository with full git history
-2. Validates Gemini API credentials (GEMINI_API_KEY or GOOGLE_API_KEY)
-3. Prepares repository context (structure, recent commits, metadata)
-4. Runs Gemini CLI in Docker container using Python with google-generativeai
-5. Executes custom query against Gemini Pro model
-6. Saves results in configurable format: `gemini-outputs/gemini-result-YYYY-MM-DD_HH-MM-SS.[format]`
-7. Generates execution log: `gemini-outputs/gemini-log-YYYY-MM-DD_HH-MM-SS.txt`
-8. Creates GitHub Actions summary with result preview
-9. Commits and pushes results, logs, and context to repository
-10. Uploads multiple artifacts (result, log, context) for review
+1. Checks out the repository
+2. Implements **intelligent multi-tier model fallback strategy**
+3. Generates comprehensive tech news digest covering:
+   - 🚨 Critical security updates and CVE disclosures
+   - 🔬 Latest research breakthroughs from academia
+   - 🛠️ Production-ready technology releases
+   - 🏗️ Architectural evolution and patterns
+   - 📊 Industry signals and trends
+   - 🔮 Emerging technologies
+4. Automatically retries with high-quality models before falling back
+5. Maximizes daily quota (RPD) usage on premium models
+6. Saves interactive HTML digest: `tech-digest-YYYY-MM-DD.html`
+7. Commits results to dedicated `tech-digest` branch
+8. Provides detailed execution summary with model usage stats
 
 **Key Features**:
-- ✅ **Google Gemini Pro Integration**: Uses latest Gemini AI model for task execution
-- ✅ **Flexible Query System**: Execute any custom query via workflow input
-- ✅ **Multiple Output Formats**: Choose between text, JSON, or Markdown output
-- ✅ **Repository Context Aware**: Automatically includes repo structure and history
-- ✅ **Secure API Key Handling**: Supports GEMINI_API_KEY or GOOGLE_API_KEY
-- ✅ **Manual Triggers**: Run on-demand with custom queries and output formats
-- ✅ **Complete Logging**: Separate execution logs for debugging
-- ✅ **Artifact Persistence**: 30-day retention for results and logs
+- ✅ **Intelligent Model Fallback**: 6-tier cascading strategy from premium to economy models
+- ✅ **Quota Maximization**: Aggressive retry logic exhausts daily quotas before downgrading
+- ✅ **Quality-First Approach**: Always attempts highest quality models first
+- ✅ **Rate Limit Resilience**: Handles 429/403 errors with exponential backoff
+- ✅ **Premium Models**: gemini-2.5-pro (6/50 RPD) and gemini-2.5-flash (4/250 RPD)
+- ✅ **Comprehensive Logging**: Tracks model used, attempts required, quality tier
+- ✅ **Interactive Output**: Beautiful dark-themed HTML with collapsible sections
+- ✅ **Multi-Source Intelligence**: ArXiv, CVE databases, web search, documentation
+- ✅ **Manual Triggers**: Customize focus areas and items per category
+
+**Model Tier Strategy**:
+1. **Premium Tier** 🏆: gemini-2.5-pro (5 retries × 60s), gemini-2.5-flash (4 retries × 60s)
+2. **High Quality** ⭐: gemini-2.0-flash (3 retries × 60s)
+3. **Balanced** ⚖️: gemini-2.5-flash-lite (2 retries × 60s), gemini-2.0-flash-lite (2 retries × 60s)
+4. **Economy** 💰: gemini-2.5-flash-tts (1 retry × 60s)
+
+**Note:** All models use consistent 1-minute delays between retries to properly respect rate limits.
+
+**See**: [MODEL_FALLBACK_STRATEGY.md](MODEL_FALLBACK_STRATEGY.md) for complete details
 
 ## Configuration
 

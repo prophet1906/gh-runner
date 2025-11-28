@@ -33,8 +33,333 @@ jobs:
         id: get-date
         run: echo "date=$(date +%Y-%m-%d)" >> $GITHUB_OUTPUT
       
-      - name: Generate Tech News Digest
+      - name: Generate Tech News Digest with Intelligent Model Fallback
         id: generate-digest
+        env:
+          CURRENT_DATE: ${{ steps.get-date.outputs.date }}
+          FOCUS_AREAS: ${{ github.event.inputs.focus_areas || 'AI/ML, Security, Cloud, DevOps, Programming Languages' }}
+          MAX_ITEMS: ${{ github.event.inputs.max_items_per_category || '5' }}
+          GCP_LOCATION: ${{ vars.GOOGLE_CLOUD_LOCATION }}
+          GCP_PROJECT_ID: ${{ vars.GOOGLE_CLOUD_PROJECT }}
+          GCP_SERVICE_ACCOUNT: ${{ vars.SERVICE_ACCOUNT_EMAIL }}
+          GCP_WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_CLI_VERSION: ${{ vars.GEMINI_CLI_VERSION || 'latest' }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          USE_VERTEX_AI: ${{ vars.GOOGLE_GENAI_USE_VERTEXAI }}
+        run: |
+          # Define model tiers with quota information
+          # Format: "model_name|max_retries|retry_delay_seconds|quality_tier"
+          # High quality models get more retries to exhaust daily quota (RPD)
+          # Using consistent 60s (1 min) delay for all retries to respect rate limits
+          
+          declare -A MODEL_TIERS=(
+            # Tier 1: Premium Quality - Max retries to use full RPD quota
+            ["gemini-2.5-pro"]="5|60|premium"              # 6/50 RPD - try 5 times with 1min delay
+            ["gemini-2.5-flash"]="4|60|premium"            # 4/250 RPD - try 4 times with 1min delay
+            
+            # Tier 2: High Quality - Moderate retries
+            ["gemini-2.0-flash"]="3|60|high"               # 0/200 RPD - try 3 times with 1min delay
+            
+            # Tier 3: Balanced Quality - Some retries
+            ["gemini-2.5-flash-lite"]="2|60|balanced"      # 1/1K RPD - try 2 times with 1min delay
+            ["gemini-2.0-flash-lite"]="2|60|balanced"      # 0/200 RPD - try 2 times with 1min delay
+            
+            # Tier 4: Economy - Immediate fallback
+            ["gemini-2.5-flash-tts"]="1|60|economy"        # 0/15 RPD - single attempt with 1min delay
+          )
+          
+          # Priority order: Try best models first with retries
+          MODEL_ORDER=(
+            "gemini-2.5-pro"
+            "gemini-2.5-flash"
+            "gemini-2.0-flash"
+            "gemini-2.5-flash-lite"
+            "gemini-2.0-flash-lite"
+            "gemini-2.5-flash-tts"
+          )
+          
+          # Function to attempt generation with retry logic
+          attempt_generation_with_retry() {
+            local model=$1
+            local config="${MODEL_TIERS[$model]}"
+            local max_retries=$(echo "$config" | cut -d'|' -f1)
+            local retry_delay=$(echo "$config" | cut -d'|' -f2)
+            local quality=$(echo "$config" | cut -d'|' -f3)
+            
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "🎯 Model: $model"
+            echo "📊 Quality Tier: $quality"
+            echo "🔄 Max Retries: $max_retries"
+            echo "⏱️  Retry Delay: ${retry_delay}s"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            
+            for attempt in $(seq 1 $max_retries); do
+              echo ""
+              echo "🔄 Attempt $attempt/$max_retries with model: $model"
+              
+              # Create temporary prompt file
+              cat > /tmp/prompt.txt << 'PROMPT_EOF'
+            You are a technical intelligence curator for software professionals and academics. Generate a comprehensive tech news digest.
+
+            ## CONTEXT
+            - Current Date: ${CURRENT_DATE}
+            - Focus Areas: ${FOCUS_AREAS}
+            - Max Items Per Category: ${MAX_ITEMS}
+
+            ## NEWS DISCOVERY FRAMEWORK
+
+            ### Phase 1: Multi-Dimensional Scan
+            Search across these dimensions:
+
+            **A. Breakthrough Research & Innovation**
+            - Recent papers on arXiv (cs.SE, cs.AI, cs.PL, cs.DC, cs.CR, cs.DB)
+            - Conference proceedings (ICSE, FSE, PLDI, OSDI, SOSP, NeurIPS, SIGMOD)
+            - Novel algorithms, formal methods, theoretical advances
+
+            **B. Production-Ready Technology**
+            - New stable releases of major frameworks/languages
+            - Adoption patterns in production environments
+            - Tooling improvements (developer productivity, observability, security)
+
+            **C. Architectural & Paradigm Shifts**
+            - Evolving patterns in system design
+            - Infrastructure evolution (cloud-native, edge computing, serverless)
+            - Programming paradigm adoption
+
+            **D. Security & Compliance Landscape**
+            - Critical CVEs and vulnerability disclosures (CISA KEV, NVD)
+            - Zero-day exploits and mitigation strategies
+            - Regulatory changes
+
+            **E. Industry Intelligence**
+            - Major tech company engineering blogs
+            - Open source project trajectories
+            - Developer survey insights
+
+            ### Phase 2: Signal Extraction
+
+            **Relevance Scoring:**
+            - Critical (⭐⭐⭐): Immediate impact, security-critical, paradigm-shifting
+            - Important (⭐⭐): Emerging best practices, growing adoption
+            - Awareness (⭐): Experimental, early-stage
+
+            **Actionability Assessment:**
+            - Immediate Action: Requires updates, patches
+            - Strategic Planning: 3-6 month roadmaps
+            - Monitor & Learn: Track evolution, experiment
+            - Long-term Watch: Revisit in 6-12 months
+
+            ## CRITICAL OUTPUT REQUIREMENTS
+
+            **YOU MUST:**
+            1. Generate a complete, self-contained interactive HTML file
+            2. Save it as: tech-digest-${CURRENT_DATE}.html in the repository root
+            3. Include all 6 categories: Critical Updates, Research Breakthroughs, Production Technology, Architectural Evolution, Industry Signals, Emerging Horizons
+            4. Validate ALL links before inclusion - use only working URLs
+            5. Use dark theme design with modern, responsive layout
+            6. Include collapsible sections for each category
+            7. Each news item must have: title, badges (relevance + actionability), description, verified source link, and detail sections (Why It Matters, Recommended Action, Learning Resources)
+
+            ## HTML STRUCTURE REQUIREMENTS
+
+            Create a complete HTML document with:
+            - DOCTYPE html declaration
+            - Meta tags for UTF-8 and viewport
+            - Title: "Tech Intelligence Digest - ${CURRENT_DATE}"
+            - Embedded CSS with dark theme variables:
+              * --critical: #dc2626
+              * --research: #7c3aed
+              * --production: #059669
+              * --architecture: #0891b2
+              * --industry: #ea580c
+              * --emerging: #6366f1
+              * Dark backgrounds: #0f172a, #1e293b, #334155
+            
+            - Header with gradient title and metadata
+            - Stats bar showing counts for each category
+            - Six category sections, each with:
+              * Category header with icon and toggle button
+              * Collapsible content area
+              * News items with structured data
+            
+            - Each news item structure:
+              ```html
+              <div class="news-item">
+                <div class="item-header">
+                  <h3 class="item-title">{Title}</h3>
+                  <div class="badges">
+                    <span class="badge {critical|important|awareness}">{Relevance}</span>
+                    <span class="badge {immediate|strategic|monitor|watch}">{Actionability}</span>
+                  </div>
+                </div>
+                <p class="item-description">{Description}</p>
+                <a href="{verified_url}" class="source-link" target="_blank">Original Source: {source_name}</a>
+                <div class="item-details">
+                  <div class="detail-section">
+                    <h4>💡 Why It Matters</h4>
+                    <p>{Impact explanation}</p>
+                  </div>
+                  <div class="detail-section">
+                    <h4>⚡ Recommended Action</h4>
+                    <p>{Next steps}</p>
+                  </div>
+                  <div class="detail-section">
+                    <h4>📚 Learning Resources</h4>
+                    <div class="resources">
+                      <a href="{url}" class="resource-link" target="_blank">{Resource Name}</a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              ```
+            
+            - JavaScript for toggle functionality:
+              ```javascript
+              function toggleCategory(header) {
+                const content = header.nextElementSibling;
+                const button = header.querySelector('.toggle-btn');
+                if (content.classList.contains('collapsed')) {
+                  content.classList.remove('collapsed');
+                  button.classList.remove('collapsed');
+                  button.classList.add('expanded');
+                } else {
+                  content.classList.add('collapsed');
+                  button.classList.remove('expanded');
+                  button.classList.add('collapsed');
+                }
+              }
+              ```
+            
+            - Footer with generation metadata
+
+            ## EXECUTION STEPS
+
+            1. Perform Multi-Dimensional Scan using available search tools
+            2. Extract signals and evaluate relevance/actionability
+            3. **Validate all URLs** - test each link, replace broken ones or mark unavailable
+            4. Count items per category for stats bar
+            5. Generate complete HTML with proper styling
+            6. **Save file as: tech-digest-${CURRENT_DATE}.html**
+            7. Ensure file is browser-ready (no external dependencies)
+
+            ## QUALITY CRITERIA
+            ✅ All links verified and working
+            ✅ Balanced across experience levels
+            ✅ Verifiable from primary sources
+            ✅ Clear relevance to professional practice
+            ✅ Honest about maturity levels and risks
+            ✅ Actionable recommendations for each item
+
+            Begin generating the digest now. Save the complete HTML file to tech-digest-${CURRENT_DATE}.html
+          PROMPT_EOF
+            
+              # Expand environment variables in prompt
+              export CURRENT_DATE FOCUS_AREAS MAX_ITEMS
+              envsubst < /tmp/prompt.txt > /tmp/prompt_expanded.txt
+              
+              # Attempt API call using Gemini API
+              if [ -n "$GEMINI_API_KEY" ]; then
+                # Using Gemini API Key method
+                RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+                  "https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}" \
+                  -H 'Content-Type: application/json' \
+                  -d "{
+                    \"contents\": [{
+                      \"parts\": [{
+                        \"text\": $(jq -Rs . < /tmp/prompt_expanded.txt)
+                      }]
+                    }],
+                    \"generationConfig\": {
+                      \"temperature\": 0.7,
+                      \"topK\": 40,
+                      \"topP\": 0.95,
+                      \"maxOutputTokens\": 8192
+                    }
+                  }")
+                
+                HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+                BODY=$(echo "$RESPONSE" | sed '$d')
+                
+                # Check response status
+                if [ "$HTTP_CODE" = "429" ]; then
+                  echo "⚠️ Rate limit hit (429) - RPM quota exhausted"
+                  if [ $attempt -lt $max_retries ]; then
+                    echo "⏳ Waiting ${retry_delay}s before retry (attempt $attempt/$max_retries)..."
+                    echo "💡 Strategy: Maximize daily quota (RPD) usage before falling back to lower quality"
+                    sleep $retry_delay
+                    continue
+                  else
+                    echo "❌ Max retries reached for $model - moving to next tier"
+                    return 1
+                  fi
+                elif [ "$HTTP_CODE" = "403" ]; then
+                  echo "⚠️ Quota exceeded (403) - Daily quota (RPD) may be exhausted"
+                  if [ $attempt -lt $max_retries ]; then
+                    echo "⏳ Waiting ${retry_delay}s before retry (attempt $attempt/$max_retries)..."
+                    sleep $retry_delay
+                    continue
+                  else
+                    echo "❌ Daily quota exhausted for $model - moving to next tier"
+                    return 1
+                  fi
+                elif [ "$HTTP_CODE" = "200" ]; then
+                  echo "✅ SUCCESS with model: $model (attempt $attempt/$max_retries)"
+                  echo "$BODY" | jq -r '.candidates[0].content.parts[0].text' > "tech-digest-${CURRENT_DATE}.html"
+                  echo "model_used=$model" >> $GITHUB_OUTPUT
+                  echo "attempts_taken=$attempt" >> $GITHUB_OUTPUT
+                  echo "quality_tier=$quality" >> $GITHUB_OUTPUT
+                  return 0
+                else
+                  echo "❌ Error with model $model: HTTP $HTTP_CODE"
+                  echo "$BODY" | jq '.' 2>/dev/null || echo "$BODY"
+                  return 1
+                fi
+              else
+                echo "❌ GEMINI_API_KEY not configured"
+                return 1
+              fi
+            done
+            
+            # All retries exhausted for this model
+            return 1
+          }
+          
+          # Main execution: Try each model tier with retry logic
+          SUCCESS=false
+          TOTAL_ATTEMPTS=0
+          
+          for model in "${MODEL_ORDER[@]}"; do
+            if attempt_generation_with_retry "$model"; then
+              SUCCESS=true
+              echo ""
+              echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+              echo "🎉 Generation completed successfully!"
+              echo "✨ Model: $model"
+              echo "📊 Quality Tier: ${MODEL_TIERS[$model]##*|}"
+              echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+              break
+            else
+              echo ""
+              echo "💫 Model $model exhausted - trying next tier..."
+              echo ""
+              sleep 5  # Brief cooldown before trying next model tier
+            fi
+          done
+          
+          if [ "$SUCCESS" = false ]; then
+            echo "error=All model tiers exhausted - quota limits reached across all quality levels" >> $GITHUB_OUTPUT
+            echo ""
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "❌ COMPLETE FAILURE"
+            echo "All models across all quality tiers have been exhausted."
+            echo "This indicates severe quota limitations."
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            exit 1
+          fi
+      
+      - name: Generate Tech News Digest (Legacy Fallback)
+        if: failure() && steps.generate-digest.outputs.error != ''
         uses: google-github-actions/run-gemini-cli@v0
         env:
           CURRENT_DATE: ${{ steps.get-date.outputs.date }}
@@ -47,7 +372,7 @@ jobs:
           gcp_workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
           gemini_cli_version: ${{ vars.GEMINI_CLI_VERSION || 'latest' }}
-          gemini_model: ${{ vars.GEMINI_MODEL }}
+          gemini_model: 'gemini-1.5-flash-8b'
           google_api_key: ${{ secrets.GOOGLE_API_KEY }}
           use_vertex_ai: ${{ vars.GOOGLE_GENAI_USE_VERTEXAI }}
           upload_artifacts: true
@@ -210,6 +535,9 @@ jobs:
         if: always()
         run: |
           ERROR="${{ steps.generate-digest.outputs.error }}"
+          MODEL_USED="${{ steps.generate-digest.outputs.model_used }}"
+          ATTEMPTS="${{ steps.generate-digest.outputs.attempts_taken }}"
+          QUALITY="${{ steps.generate-digest.outputs.quality_tier }}"
           DATE=$(date +%Y-%m-%d)
           
           echo "## 🚀 Tech News Digest Generation" >> $GITHUB_STEP_SUMMARY
@@ -218,11 +546,48 @@ jobs:
           echo "**Focus Areas:** ${{ github.event.inputs.focus_areas || 'AI/ML, Security, Cloud, DevOps, Programming Languages' }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
+          if [ -n "$MODEL_USED" ]; then
+            echo "### 🤖 Model Information" >> $GITHUB_STEP_SUMMARY
+            echo "- **Model:** \`$MODEL_USED\`" >> $GITHUB_STEP_SUMMARY
+            
+            if [ -n "$QUALITY" ]; then
+              case "$QUALITY" in
+                "premium")
+                  echo "- **Quality Tier:** 🏆 Premium (Best Available)" >> $GITHUB_STEP_SUMMARY
+                  ;;
+                "high")
+                  echo "- **Quality Tier:** ⭐ High Quality" >> $GITHUB_STEP_SUMMARY
+                  ;;
+                "balanced")
+                  echo "- **Quality Tier:** ⚖️ Balanced" >> $GITHUB_STEP_SUMMARY
+                  ;;
+                "economy")
+                  echo "- **Quality Tier:** 💰 Economy" >> $GITHUB_STEP_SUMMARY
+                  ;;
+              esac
+            fi
+            
+            if [ -n "$ATTEMPTS" ]; then
+              echo "- **Attempts Required:** $ATTEMPTS" >> $GITHUB_STEP_SUMMARY
+              if [ "$ATTEMPTS" -gt 1 ]; then
+                echo "- **Strategy:** ♻️ Retry logic maximized daily quota usage" >> $GITHUB_STEP_SUMMARY
+              fi
+            fi
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+          
           if [ -n "$ERROR" ]; then
             echo "### ❌ Generation Failed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Error Details:**" >> $GITHUB_STEP_SUMMARY
             echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
             echo "$ERROR" >> $GITHUB_STEP_SUMMARY
             echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Possible Causes:**" >> $GITHUB_STEP_SUMMARY
+            echo "- All model tiers exhausted their daily quotas (RPD)" >> $GITHUB_STEP_SUMMARY
+            echo "- API rate limits exceeded across all quality levels" >> $GITHUB_STEP_SUMMARY
+            echo "- Consider running again in a few hours" >> $GITHUB_STEP_SUMMARY
           else
             echo "### ✅ Digest Generated Successfully" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
@@ -230,7 +595,7 @@ jobs:
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "The interactive HTML digest has been generated and will be committed to the repository." >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Features:**" >> $GITHUB_STEP_SUMMARY
+            echo "**Content Coverage:**" >> $GITHUB_STEP_SUMMARY
             echo "- 🚨 Critical security updates" >> $GITHUB_STEP_SUMMARY
             echo "- 🔬 Latest research breakthroughs" >> $GITHUB_STEP_SUMMARY
             echo "- 🛠️ Production-ready technologies" >> $GITHUB_STEP_SUMMARY
