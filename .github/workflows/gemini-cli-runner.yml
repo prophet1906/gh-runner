@@ -627,6 +627,7 @@ jobs:
         if: steps.verify-digest.outputs.file_exists == 'true'
         run: |
           DATE=$(date +%Y-%m-%d)
+          DIGEST_FILE="tech-digest-${DATE}.html"
           
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
@@ -646,12 +647,28 @@ jobs:
             git checkout -b tech-digest
           fi
           
-          # Add generated HTML digest file
-          git add "tech-digest-${DATE}.html"
+          # Check if file with same name already exists on remote
+          if git ls-remote --exit-code origin tech-digest | grep -q .; then
+            # Remote branch exists, check for existing file
+            if git ls-tree -r origin/tech-digest --name-only | grep -q "^${DIGEST_FILE}$"; then
+              echo "⚠️ File ${DIGEST_FILE} already exists on remote tech-digest branch"
+              echo "🔄 Will force push to overwrite existing file"
+              FORCE_PUSH=true
+            else
+              echo "✅ File ${DIGEST_FILE} does not exist on remote, proceeding with normal push"
+              FORCE_PUSH=false
+            fi
+          else
+            echo "🆕 Remote tech-digest branch does not exist yet"
+            FORCE_PUSH=false
+          fi
+          
+          # Add generated HTML digest file (overwrites local file if it exists)
+          git add -f "${DIGEST_FILE}"
           
           # Check if there are changes to commit
           if git diff --staged --quiet; then
-            echo "ℹ️ No changes to commit (digest may already exist)"
+            echo "ℹ️ No changes to commit (digest content is identical)"
           else
             git commit -m "Add Tech News Digest for ${DATE}" \
               -m "Generated interactive HTML digest covering:" \
@@ -662,10 +679,19 @@ jobs:
               -m "- Industry signals and adoption trends" \
               -m "- Emerging technologies and innovations" \
               -m "" \
-              -m "File: tech-digest-${DATE}.html"
+              -m "File: ${DIGEST_FILE}" \
+              -m "Note: This file replaces any previous version with the same name"
             
-            git push -u origin tech-digest
-            echo "✅ Tech digest pushed successfully to tech-digest branch!"
-            echo "📄 View at: tech-digest-${DATE}.html"
+            # Push with force if file already exists, otherwise normal push
+            if [ "$FORCE_PUSH" = true ]; then
+              echo "🚀 Force pushing to overwrite existing file..."
+              git push -f -u origin tech-digest
+              echo "✅ Tech digest FORCE PUSHED successfully - existing file overwritten!"
+            else
+              git push -u origin tech-digest
+              echo "✅ Tech digest pushed successfully to tech-digest branch!"
+            fi
+            
+            echo "📄 View at: ${DIGEST_FILE}"
             echo "🌿 Branch: tech-digest"
           fi
