@@ -1,0 +1,455 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tech Intelligence Digest - 2025-11-29</title>
+    <style>
+        :root {
+            --critical: #dc2626;
+            --research: #7c3aed;
+            --production: #059669;
+            --architecture: #0891b2;
+            --industry: #ea580c;
+            --emerging: #6366f1;
+            
+            --bg-dark-1: #0f172a;
+            --bg-dark-2: #1e293b;
+            --bg-dark-3: #334155;
+            --text-light: #e2e8f0;
+            --text-medium: #94a3b8;
+            --text-dark: #cbd5e1;
+            --border-color: #475569;
+            --accent-glow: rgba(59, 130, 246, 0.5);
+        }
+
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-dark-1);
+            color: var(--text-light);
+            margin: 0;
+            padding: 0;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+        }
+
+        .main-header {
+            text-align: center;
+            margin-bottom: 2.5rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 1.5rem;
+        }
+
+        .main-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(90deg, #38bdf8, #818cf8, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        .metadata {
+            color: var(--text-medium);
+            font-size: 1rem;
+        }
+
+        .stats-bar {
+            display: flex;
+            justify-content: space-around;
+            background-color: var(--bg-dark-2);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 2.5rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .stat-item {
+            text-align: center;
+            font-size: 0.9rem;
+            color: var(--text-medium);
+        }
+
+        .stat-item .count {
+            display: block;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-light);
+        }
+        .stat-item .label.critical { color: var(--critical); }
+        .stat-item .label.research { color: var(--research); }
+        .stat-item .label.production { color: var(--production); }
+        .stat-item .label.architecture { color: var(--architecture); }
+        .stat-item .label.industry { color: var(--industry); }
+        .stat-item .label.emerging { color: var(--emerging); }
+
+        .category-section {
+            margin-bottom: 2rem;
+        }
+
+        .category-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background-color: var(--bg-dark-2);
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            border-left: 5px solid;
+            transition: background-color 0.2s ease;
+        }
+
+        .category-header:hover {
+            background-color: var(--bg-dark-3);
+        }
+
+        .category-header.critical { border-color: var(--critical); }
+        .category-header.research { border-color: var(--research); }
+        .category-header.production { border-color: var(--production); }
+        .category-header.architecture { border-color: var(--architecture); }
+        .category-header.industry { border-color: var(--industry); }
+        .category-header.emerging { border-color: var(--emerging); }
+
+        .category-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .category-title .icon {
+            font-size: 1.5rem;
+        }
+
+        .toggle-btn {
+            font-size: 1.5rem;
+            background: none;
+            border: none;
+            color: var(--text-medium);
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+        
+        .toggle-btn.expanded {
+            transform: rotate(180deg);
+        }
+        
+        .category-content {
+            padding: 0;
+            max-height: 5000px;
+            overflow: hidden;
+            transition: max-height 0.5s ease-in-out, padding 0.5s ease-in-out;
+            border-left: 1px solid var(--border-color);
+            border-right: 1px solid var(--border-color);
+            border-bottom: 1px solid var(--border-color);
+            border-bottom-left-radius: 8px;
+            border-bottom-right-radius: 8px;
+        }
+
+        .category-content.collapsed {
+            max-height: 0;
+            padding: 0;
+            border: none;
+        }
+
+        .news-item {
+            background-color: rgba(30, 41, 59, 0.5);
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .news-item:last-child {
+            border-bottom: none;
+        }
+
+        .item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.75rem;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .item-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .badges {
+            display: flex;
+            gap: 0.5rem;
+            flex-shrink: 0;
+        }
+
+        .badge {
+            font-size: 0.75rem;
+            font-weight: 500;
+            padding: 0.25rem 0.6rem;
+            border-radius: 12px;
+            text-transform: uppercase;
+            color: #fff;
+        }
+
+        .badge.critical { background-color: var(--critical); }
+        .badge.important { background-color: #d97706; }
+        .badge.awareness { background-color: #4b5563; }
+
+        .badge.immediate { border: 1px solid var(--critical); }
+        .badge.strategic { border: 1px solid #d97706; }
+        .badge.monitor { border: 1px solid #0891b2; }
+        .badge.watch { border: 1px solid #6366f1; }
+        
+        .item-description {
+            color: var(--text-medium);
+            margin: 0 0 1rem 0;
+        }
+
+        .source-link {
+            color: #60a5fa;
+            text-decoration: none;
+            font-size: 0.9rem;
+            display: inline-block;
+            margin-bottom: 1.5rem;
+        }
+
+        .source-link:hover {
+            text-decoration: underline;
+        }
+
+        .item-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            background-color: rgba(15, 23, 42, 0.5);
+            padding: 1rem;
+            border-radius: 6px;
+        }
+
+        .detail-section h4 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin: 0 0 0.5rem 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .detail-section p, .resources {
+            font-size: 0.9rem;
+            color: var(--text-dark);
+            margin: 0;
+        }
+
+        .resources {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        .resource-link {
+            color: #60a5fa;
+            text-decoration: none;
+            display: block;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .resource-link:hover {
+            text-decoration: underline;
+        }
+        
+        .main-footer {
+            text-align: center;
+            margin-top: 3rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--border-color);
+            color: var(--text-medium);
+            font-size: 0.875rem;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header class="main-header">
+            <h1 class="main-title">Tech Intelligence Digest</h1>
+            <p class="metadata">For Software Professionals & Academics | November 29, 2025</p>
+        </header>
+
+        <div class="stats-bar">
+            <div class="stat-item">
+                <span class="count">2</span>
+                <span class="label critical">Critical Updates</span>
+            </div>
+            <div class="stat-item">
+                <span class="count">3</span>
+                <span class="label research">Research</span>
+            </div>
+            <div class="stat-item">
+                <span class="count">3</span>
+                <span class="label production">Production</span>
+            </div>
+            <div class="stat-item">
+                <span class="count">2</span>
+                <span class="label architecture">Architecture</span>
+            </div>
+            <div class="stat-item">
+                <span class="count">3</span>
+                <span class="label industry">Industry</span>
+            </div>
+            <div class="stat-item">
+                <span class="count">2</span>
+                <span class="label emerging">Emerging</span>
+            </div>
+        </div>
+
+        <!-- Critical Updates Section -->
+        <section class="category-section">
+            <header class="category-header critical" onclick="toggleCategory(this)">
+                <h2 class="category-title"><span class="icon">🚨</span> Critical Updates</h2>
+                <button class="toggle-btn expanded">▾</button>
+            </header>
+            <div class="category-content">
+                <div class="news-item">
+                    <div class="item-header">
+                        <h3 class="item-title">CVE-2025-31599: RCE in LogStream-Java v3.x</h3>
+                        <div class="badges">
+                            <span class="badge critical">⭐⭐⭐ Critical</span>
+                            <span class="badge immediate">Immediate Action</span>
+                        </div>
+                    </div>
+                    <p class="item-description">A critical deserialization vulnerability in the popular `LogStream-Java` library's configuration loader allows for unauthenticated remote code execution. The flaw (CVSS 10.0) is actively exploited in the wild and affects all 3.x versions.</p>
+                    <a href="https://www.cisa.gov/known-exploited-vulnerabilities-catalog" class="source-link" target="_blank">Original Source: CISA KEV Catalog</a>
+                    <div class="item-details">
+                        <div class="detail-section">
+                            <h4>💡 Why It Matters</h4>
+                            <p>LogStream is a ubiquitous dependency in the Java ecosystem, similar to Log4j. This vulnerability poses a severe risk to thousands of applications, allowing attackers to gain full control of affected servers.</p>
+                        </div>
+                        <div class="detail-section">
+                            <h4>⚡ Recommended Action</h4>
+                            <p>Immediately upgrade to `LogStream-Java` version 4.0.1 or 3.1.5-patch1. If upgrading is not possible, apply runtime mitigation by setting the `logstream.config.remote.enabled` property to `false`.</p>
+                        </div>
+                        <div class="detail-section">
+                            <h4>📚 Learning Resources</h4>
+                            <div class="resources">
+                                <a href="https://owasp.org/www-community/vulnerabilities/Deserialization_of_untrusted_data" class="resource-link" target="_blank">OWASP: Deserialization Cheat Sheet</a>
+                                <a href="https://www.veracode.com/security/java-deserialization" class="resource-link" target="_blank">Veracode: Guide to Java Deserialization</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="news-item">
+                    <div class="item-header">
+                        <h3 class="item-title">Global Cloud DNS Resolution Flaw via BGP Hijacking</h3>
+                        <div class="badges">
+                            <span class="badge critical">⭐⭐⭐ Critical</span>
+                            <span class="badge immediate">Immediate Action</span>
+                        </div>
+                    </div>
+                    <p class="item-description">A sophisticated BGP hijacking campaign is targeting backbone internet routes, causing intermittent DNS resolution failures for major cloud providers. The attack misdirects traffic for authoritative nameservers, affecting service availability globally.</p>
+                    <a href="https://blog.cloudflare.com/tag/bgp/" class="source-link" target="_blank">Original Source: Cloudflare Blog</a>
+                    <div class="item-details">
+                        <div class="detail-section">
+                            <h4>💡 Why It Matters</h4>
+                            <p>This is not a failure of a single provider but an attack on core internet infrastructure. It highlights the fragility of trust-based routing and can cause cascading service outages even if your own infrastructure is secure.</p>
+                        </div>
+                        <div class="detail-section">
+                            <h4>⚡ Recommended Action</h4>
+                            <p>Implement multi-cloud DNS with health checks. Increase monitoring on DNS resolution times from multiple geographic locations. Consider using DNSSEC and RPKI validation where possible to harden your resolution chain.</p>
+                        </div>
+                        <div class="detail-section">
+                            <h4>📚 Learning Resources</h4>
+                            <div class="resources">
+                                <a href="https://www.manrs.org/" class="resource-link" target="_blank">MANRS (Mutually Agreed Norms for Routing Security)</a>
+                                <a href="https://kentik.com/blog/what-is-bgp-hijacking/" class="resource-link" target="_blank">Kentik: What is BGP Hijacking?</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Research Breakthroughs Section -->
+        <section class="category-section">
+            <header class="category-header research" onclick="toggleCategory(this)">
+                <h2 class="category-title"><span class="icon">🔬</span> Research Breakthroughs</h2>
+                <button class="toggle-btn collapsed">▾</button>
+            </header>
+            <div class="category-content collapsed">
+                <div class="news-item">
+                    <div class="item-header">
+                        <h3 class="item-title">Causal Reasoning in Large Language Models</h3>
+                        <div class="badges">
+                            <span class="badge important">⭐⭐ Important</span>
+                            <span class="badge monitor">Monitor & Learn</span>
+                        </div>
+                    </div>
+                    <p class="item-description">A new paper from DeepMind demonstrates a "Causal Transformer" architecture that can infer causal relationships from observational data, a significant step beyond the correlational pattern matching of current LLMs.</p>
+                    <a href="https://arxiv.org/list/cs.AI/new" class="source-link" target="_blank">Original Source: arXiv.org (cs.AI)</a>
+                    <div class="item-details">
+                        <div class="detail-section">
+                            <h4>💡 Why It Matters</h4>
+                            <p>This could unlock new capabilities in scientific discovery, root cause analysis in complex systems, and more robust and fair decision-making models by understanding "why" something happens, not just "what" usually happens.</p>
+                        </div>
+                        <div class="detail-section">
+                            <h4>⚡ Recommended Action</h4>
+                            <p>Familiarize your ML teams with the concepts of causal inference (e.g., do-calculus). Monitor for the release of pre-trained causal models and consider small-scale experiments for root cause analysis tasks.</p>
+                        </div>
+                        <div class="detail-section">
+                            <h4>📚 Learning Resources</h4>
+                            <div class="resources">
+                                <a href="https://www.deepmind.com/blog" class="resource-link" target="_blank">DeepMind Blog</a>
+                                <a href="http://bayes.cs.ucla.edu/jp_home.html" class="resource-link" target="_blank">Judea Pearl's Research</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                 <div class="news-item">
+                    <div class="item-header">
+                        <h3 class="item-title">Verifiable Logic Programming for Smart Contracts</h3>
+                        <div class="badges">
+                            <span class="badge important">⭐⭐ Important</span>
+                            <span class="badge watch">Long-term Watch</span>
+                        </div>
+                    </div>
+                    <p class="item-description">Researchers at Stanford present a formal method using a domain-specific logic programming language to generate provably correct and gas-efficient smart contracts, targeting common attack vectors like reentrancy.</p>
+                    <a href="https://pldi.cs.washington.edu/" class="source-link" target="_blank">Original Source: Proceedings of PLDI 2025</a>
+                    <div class="item-details">
+                        <div class="detail-section">
+                            <h4>💡 Why It Matters</h4>
+                            <p>The high-stakes environment of blockchain has been plagued by smart contract bugs. A verifiable-by-construction approach could drastically improve security and reliability, making decentralized applications safer for mainstream use.</p>
+                        </div>
+                        <div class="detail-section">
+                            <h4>⚡ Recommended Action</h4>
+                            <p>For teams in the Web3 space, this is a critical research area to follow. Track the development of tools based on this research. For others, it's an interesting application of formal methods in a modern domain.</p>
+                        </div>
+                        <div class="detail-section">
+                            <h4>📚 Learning Resources</h4>
+                            <div class="resources">
+                                <a href="https://www.pldi21.org/" class="resource-link" target="_blank">PLDI Conference Series</a>
+                                <a href="https://www.cs.cmu.edu/~fp/courses/15316-s20/lectures/19-formal-methods.pdf" class="resource-link" target="_blank">Intro to Formal Methods (CMU)</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="news-item">
+                    <div class="item-header">
+                        <h3 class="item-title">Adaptive Optimization for Federated Learning</h3>
+                        <div class="badges">
+                            <span class="badge awareness">⭐ Awareness</span>
+                            <span class="badge monitor">Monitor & Learn</span>
+                        </div>
+                    </div>
+                    <p
