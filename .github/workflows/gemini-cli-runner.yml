@@ -2,8 +2,8 @@ name: Tech News Digest Generator
 
 on:
   schedule:
-    # Runs daily at 9:00 AM UTC to generate fresh news digest
-    - cron: '0 9 * * *'
+    # Runs daily at 9:00 AM IST (3:30 AM UTC) to generate fresh news digest
+    - cron: '30 3 * * *'
   workflow_dispatch: # Allows manual trigger from GitHub UI
     inputs:
       focus_areas:
